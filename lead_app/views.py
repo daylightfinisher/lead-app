@@ -691,4 +691,7 @@ def parse_report_details(updated_item):
     address = updated_item['address']
     no_of_employees = updated_item['no_of_employees']
     
-    return [page, url, sic, org_name, org_sales, city,visitscore, countryname, continent, region,address, no_of_employees]
+    return [page, url, sic, org_name, org_sales,
+            city, visitscore, countryname,
+            continent, region,address,
+            no_of_employees]

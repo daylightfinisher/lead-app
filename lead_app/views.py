@@ -1,20 +1,20 @@
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.models import User
+from django.views.decorators.csrf import csrf_exempt
+from django.contrib.auth import login as auth_login, authenticate,logout as auth_logout
+from django.utils.encoding import smart_str, smart_unicode
 from django.shortcuts import render_to_response,render, get_object_or_404,redirect
 from django.conf import settings
 from django.http import HttpResponseRedirect, HttpResponse
-from django.contrib.auth.decorators import login_required
-from django.contrib.auth.models import User
-from django.contrib.auth import login as auth_login, authenticate,logout as auth_logout
-from django.views.decorators.csrf import csrf_exempt
-import logging
-from lead_app.models import Api_Settings,LeadApi_Settings
-import json
 from datetime import date,timedelta,datetime
-
+from urllib import urlencode
+import logging
+import json
 import urllib
 import urllib2
-from urllib import urlencode
-from django.utils.encoding import smart_str, smart_unicode
+
 from google.appengine.api import urlfetch
+from lead_app.models import Api_Settings,LeadApi_Settings
 from livesettings import config_value
 
 #####################################
@@ -24,17 +24,14 @@ redirect_uri = settings.REDIRECT_URI
 client_id = settings.CLIENT_ID
 secret = settings.SECRET
 
-
 @login_required(login_url='/login/')
 def home(request):
     '''
     Lead enhancer settings. Using to configure google analytics id and
     Openapi Lead enhancer.
     '''
-    
     user = request.user
     usr_obj = User.objects.get(username=user)
-    
     #initialize the info message
     info_msg = ''
     
@@ -101,7 +98,7 @@ def home(request):
 
 def oauth2callback(request):
     '''
-    
+    Get the Google Oauth Access.
     '''
     user = request.user
     
@@ -118,57 +115,55 @@ def oauth2callback(request):
             
             response = urllib2.urlopen(url, urlencode(data))
             response_details = json.loads(response.read())
-            
             #analytics_id = request.session['analytics_id']
-            
             lead_analytics_access = Api_Settings.objects.get(user=request.user)
             
             lead_analytics_access.access_token = response_details['access_token']
             lead_analytics_access.refresh_token = response_details['refresh_token']
             lead_analytics_access.expires = response_details['expires_in']
             lead_analytics_access.token_type = response_details['token_type']
-            
             #lead_analytics_access.response = response_details
             lead_analytics_access.save()
        
         else:
             error_message = str(request.GET['error'])
         
-        #del(request.session['analytics_id']) 
-        
     return HttpResponseRedirect('/')
     #return render(request, 'configure.html', {'msg':'Your GA Profile ID has been configured',})
 
 
-
 def oauth2callback_using_refresh_token(request, **kwargs):
+    '''
+    Oauth Refresh token generation.
+    '''
     try:
         user = request.user
         api_settings = Api_Settings.objects.get(user=user)
         refresh_token = api_settings.refresh_token
         
         url = 'https://accounts.google.com/o/oauth2/token'
-        
         data = dict(refresh_token=refresh_token, client_id=client_id, client_secret=secret, grant_type='refresh_token')
         
         response = urllib2.urlopen(url, urlencode(data))
-        #print response, "URLIB2 RESPONSE Using Refresh Token"
         response_details = json.loads(response.read())
         
         api_settings.access_token = response_details['access_token']
         api_settings.expires = response_details['expires_in']
         #api_settings.response = response_details
         api_settings.save()
-        logging.info("Token Refreshed")
         refreshed = True
-        #return HttpResponse("New Token Created Successfully")
         return refreshed
+        #return HttpResponse("New Token Created Successfully")
+    
     except Exception as e:
         logging.info(str(e))
         return HttpResponse("New Token Creation Error %s"%(str(e)))
 
 
 def login(request):
+    '''
+    Login page for Lead Enhancer
+    '''
     if request.method == 'POST':
         username = request.POST['username']
         password = request.POST['password']
@@ -176,8 +171,8 @@ def login(request):
         if user is not None:
             if user.is_active:
                 auth_login(request, user)
-                #return redirect('home')
                 return redirect('view_reports')
+                #return redirect('home')
             else:
                 return render(request, 'login.html', {'msg':'User is not active'})
         else:
@@ -193,6 +188,9 @@ def logout(request):
 @login_required(login_url='/login/')
 @csrf_exempt
 def view_reports(request):
+    '''
+    Reports display the Google analytics and Lead Enhancer.
+    '''
     user = request.user
     try:
         api_settings = Api_Settings.objects.get(user=user)
@@ -200,7 +198,6 @@ def view_reports(request):
     except:
         return HttpResponseRedirect('/')
     
-    #logging.info(lead_api_settings.lead_token)
     if api_settings.ga_profile_id == None or lead_api_settings.lead_token == None :
         return HttpResponseRedirect('/')
     
@@ -210,9 +207,8 @@ def view_reports(request):
         from_date = str(from_date_range.year)+'-'+str(from_date_range.month)+'-'+str(from_date_range.day)
         to_date = str(to_date_range.year)+'-'+str(to_date_range.month)+'-'+str(to_date_range.day)
     except Exception as e:
-        print str(e), "------------------- EXCEPTION IN DATE TIME -------------------------"
-        from_date = '2013-11-20'
-        to_date = '2013-12-20'
+        logging.info(str(e))
+        pass
 
     if request.method == "POST":
         if 'from_date' in request.POST:
@@ -226,13 +222,12 @@ def view_reports(request):
             page_title = request.POST['page_title']
             
             try:
-                #Session create for from_date and to_date
+                #Session create for from_date, to_date and page title or url
                 request.session['from_date'] = from_date
                 request.session['to_date'] = to_date
                 request.session['page_title'] = page_title
             except:
                 pass
-            
             
             ## Page URL Report Generation ##
             #Check page title input is url or page title
@@ -248,16 +243,14 @@ def view_reports(request):
             'fromdate':str(from_date),#'2012-03-03',
             'todate':str(to_date),#'2013-11-09',
             'countriesiso':'DE',
-            #'pagenames':page_title,
             }
                 
-            
             lead_encoded_data = urllib.urlencode(lead_data)
             lead_gen_result = urllib2.Request('http://openapi.leadenhancer.com/v1/leadopenapi/visits?%s'%(lead_encoded_data))
             lead_api_response = urllib2.urlopen(lead_gen_result)
             generate_lead_result = json.loads(lead_api_response.read())
             
-            #GA Report
+            #GA Report encoded data creation
             data = {
                 'ids':'ga:'+str(api_settings.ga_profile_id),#67560806,77873725
                 'start-date':from_date,#'2012-03-03'
@@ -276,125 +269,49 @@ def view_reports(request):
                     headers={'Content-Type': 'application/x-www-form-urlencoded','Authorization':'Bearer %s' % api_settings.access_token})
                     
                     ga_result = json.loads(api_response.content)
-                    #logging.info(ga_result)
                     url_list = []
                     for j in ga_result['rows']:
                         url_list.append(j[0])
                     
                     update_list = []
                     for i in generate_lead_result:
-                        update_dict = {}
-                        try:
-                            update_dict['visitscore'] = i['visitscore']
-                        except:
-                            update_dict['visitscore'] = 0
-                        try:
-                            update_dict['sic'] = i['organisation']['sicprimarycode']
-                        except:
-                            update_dict['sic'] = 0
-                        try:
-                            update_dict['org_name'] = i['organisation']['name']
-                        except:
-                            update_dict['org_name'] = ''
-                        try:
-                            update_dict['org_sales'] = i['organisation']['sales']
-                        except:
-                            update_dict['org_sales'] = 0
-                        try:
-                            update_dict['city'] = i['organisation']['city']
-                        except:
-                            update_dict['city'] = ''
-                        try:
-                            update_dict['countryname'] = i['organisation']['address']['countryname']
-                        except:
-                            update_dict['countryname'] = ''
-                        try:
-                            update_dict['continent'] = i['organisation']['address']['continent']
-                        except:
-                            update_dict['continent'] = ''
-                        try:
-                            update_dict['region'] = i['organisation']['address']['region']
-                        except:
-                            update_dict['region'] = ''
-                        try:
-                            update_dict['address'] = i['organisation']['address']['address']
-                        except:
-                            update_dict['address'] = ''
-                        try:
-                            update_dict['no_of_employees'] = i['organisation']['noofemployees']
-                        except:
-                            update_dict['no_of_employees'] = ''    
-                            
-                                            
-                        for j in i['pageviews']:
-                            update_dict['url'] = j['url']
-                            update_dict['page'] = j['page']
+                        update_dict = lead_parse_dict_creation(i)
                         update_list.append(update_dict)
                     
                     update_list = sorted(update_list, key=lambda l: l['page'])
                     logging.info("Generate update_list")
                     logging.info(update_list)
         
-                            
                     dict_list = []
                     graph_result = []
-                    for k in update_list:
+                    for updated_item in update_list:
                         visitscore = ''
                         ga_visits = ''
-            
-                        for j in url_list:                         
+                        report_details = []
+                        #URL List contains the lead enhancer result urls
+                        for url_item in url_list:                     
    			    #Check page title is url or page title
                             if len(page_list) > 1:
-                                if k['page'] == j and k['url'] == page_title:
-                                    page = k['page']
-                                    url = k['url']
-                                    sic = k['sic']
-                                    org_name = k['org_name']
-                                    org_sales = k['org_sales']
-                                    city = k['city']
-                                    visitscore = k['visitscore']
-                                    countryname = k['countryname']
-                                    continent = k['continent']
-                                    region = k['region']
-                                    address = k['address']
-                                    no_of_employees = k['no_of_employees']
+                                if updated_item['page'] == url_item and updated_item['url'] == page_title:
+                                    report_details = parse_report_details(updated_item)
                             
                             elif page_title and len(page_list) == 1:
-                                if k['page'] == j and k['page'] == page_title:
-                                    page = k['page']
-                                    url = k['url']
-                                    sic = k['sic']
-                                    org_name = k['org_name']
-                                    org_sales = k['org_sales']
-                                    city = k['city']
-                                    visitscore = k['visitscore']
-                                    countryname = k['countryname']
-                                    continent = k['continent']
-                                    region = k['region']
-                                    address = k['address']
-                                    no_of_employees = k['no_of_employees']
+                                if updated_item['page'] == url_item and updated_item['page'] == page_title:
+                                    report_details = parse_report_details(updated_item)
                             else:
-                                if k['page'] == j:
-                                    page = k['page']
-                                    url = k['url']
-                                    sic = k['sic']
-                                    org_name = k['org_name']
-                                    org_sales = k['org_sales']
-                                    city = k['city']
-                                    visitscore = k['visitscore']
-                                    countryname = k['countryname']
-                                    continent = k['continent']
-                                    region = k['region']
-                                    address = k['address']
-                                    no_of_employees = k['no_of_employees']
+                                if updated_item['page'] == url_item:
+                                    report_details = parse_report_details(updated_item)
                         
-                        for g in ga_result['rows']:
-                            if g[0] == k['page']:
-                                ga_visits = g[1]
-                                
-                        if visitscore and ga_visits:
-                            graph_result.append([int(visitscore), int(ga_visits)])
-                            dict_list.append([page,url,sic,org_name,org_sales,city,visitscore,ga_visits,countryname,continent,region,address,no_of_employees])
+                        if report_details:
+                            for ga_visit_count in ga_result['rows']:
+                                if ga_visit_count[0] == updated_item['page']:
+                                    ga_visits = ga_visit_count[1]
+                                    
+                            if report_details[6] and ga_visits:
+                                graph_result.append([int(report_details[6]), int(ga_visits)])
+                                #Report display in template - google analytics visits in 7th position
+                                report_details.insert(7, ga_visits)
+                                dict_list.append(report_details)
                 
             except Exception as e:
                 logging.info(str(e))
@@ -406,7 +323,7 @@ def view_reports(request):
             return render(request, 'reports.html', {'ga_result':ga_result,'graph_result':graph_result,'dict_list':dict_list,'from_date':from_date,'to_date':to_date,'lead_api_settings':lead_api_settings, 'page_title':page_title})
         
         elif 'filters' in request.POST:
-            #Get the session values
+            #Get the session values and pass the data to template
             select_filter = 'Select'
             try:
                 from_date = request.session['from_date']
@@ -441,6 +358,7 @@ def view_reports(request):
                 'dimensions':'ga:pageTitle',#'ga:pagePath',
                 'alt':'json'
                 }
+            
             encoded_data = urllib.urlencode(data)
             try :
                 if datetime.now() > api_settings.updated:
@@ -455,8 +373,6 @@ def view_reports(request):
                     for j in ga_result['rows']:
                         url_list.append(j[0])
                     
-                    """startttttttttttttttttttts"""
-                    
                     ### Parsing the lead list using filter values ###
                     update_list = lead_list_parsing(lead_result, select_filter, request.POST['filter_val'].strip(' '))
                     
@@ -466,63 +382,32 @@ def view_reports(request):
                             
                     dict_list = []
                     graph_result = []
-                    for k in update_list:
+                    for new_item in update_list:
                         visitscore = ''
                         ga_visits = ''
                         
-                        for j in url_list:                         
+                        for ga_url in url_list:                         
    			    #Check page title is url or page title
                             if len(page_list) > 1:
-                                if k['page'] == j and k['url'] == page_title:
-                                    page = k['page']
-                                    url = k['url']
-                                    sic = k['sic']
-                                    org_name = k['org_name']
-                                    org_sales = k['org_sales']
-                                    city = k['city']
-                                    visitscore = k['visitscore']
-                                    countryname = k['countryname']
-                                    continent = k['continent']
-                                    region = k['region']
-                                    address = k['address']
-                                    no_of_employees = k['no_of_employees']
+                                if new_item['page'] == ga_url and new_item['url'] == page_title:
+                                    report_details = parse_report_details(new_item)
                             
                             elif page_title and len(page_list) == 1:
-                                if k['page'] == j and k['page'] == page_title:
-                                    page = k['page']
-                                    url = k['url']
-                                    sic = k['sic']
-                                    org_name = k['org_name']
-                                    org_sales = k['org_sales']
-                                    city = k['city']
-                                    visitscore = k['visitscore']
-                                    countryname = k['countryname']
-                                    continent = k['continent']
-                                    region = k['region']
-                                    address = k['address']
-                                    no_of_employees = k['no_of_employees']
+                                if new_item['page'] == ga_url and new_item['page'] == page_title:
+                                    report_details = parse_report_details(new_item)
                             else:
-                                if k['page'] == j:
-                                    page = k['page']
-                                    url = k['url']
-                                    sic = k['sic']
-                                    org_name = k['org_name']
-                                    org_sales = k['org_sales']
-                                    city = k['city']
-                                    visitscore = k['visitscore']
-                                    countryname = k['countryname']
-                                    continent = k['continent']
-                                    region = k['region']
-                                    address = k['address']
-                                    no_of_employees = k['no_of_employees']
-            
-                        for g in ga_result['rows']:
-                            if g[0] == k['page']:
-                                ga_visits = g[1]
+                                if new_item['page'] == ga_url:
+                                    report_details = parse_report_details(new_item)
+
+                        for ga_res in ga_result['rows']:
+                            if ga_res[0] == new_item['page']:
+                                ga_visits = ga_res[1]
                         
-                        if visitscore and ga_visits:
-                            graph_result.append([int(visitscore), int(ga_visits)])
-                            dict_list.append([page,url,sic,org_name,org_sales,city,visitscore,ga_visits,countryname,continent,region,address,no_of_employees])
+                        if report_details[6] and ga_visits:
+                            graph_result.append([int(report_details[6]), int(ga_visits)])
+                            #Report display in template - google analytics visits in 7th position
+                            report_details.insert(7, ga_visits)
+                            dict_list.append(report_details)
                     
                     logging.info(dict_list)
             
@@ -542,7 +427,11 @@ def view_reports(request):
     from_date = str(from_date_range.year)+'-'+str(from_date_range.month)+'-'+str(from_date_range.day)
     to_date = str(to_date_range.year)+'-'+str(to_date_range.month)+'-'+str(to_date_range.day)
     url = 'http://openapi.leadenhancer.com/v1/leadopenapi/visits?token=%s&fromdate=%s&todate=%s&countriesiso=DE'% (lead_api_settings.lead_token,from_date,to_date)
-    result = urlfetch.fetch(url)
+    try:
+        result = urlfetch.fetch(url)
+    except:
+        message = 'API Connection Exceeds'
+        return render(request, 'message.html', {'message':message})
     
     try:
         try:
@@ -553,7 +442,6 @@ def view_reports(request):
                 
         except Exception as e:
             logging.info(str(e))
-            logging.info(str("00000000"))
             expire_in = api_settings.updated + timedelta(seconds=int(3000))
 
         if datetime.now() > expire_in or datetime.now() < api_settings.updated:
@@ -580,8 +468,6 @@ def view_reports(request):
     encoded_data = urllib.urlencode(data)
     try :
         if datetime.now() < expire_in or datetime.now() > api_settings.updated:
-            logging.info("helllloooooooo")
-    
             api_response = urlfetch.fetch(url= 'https://www.googleapis.com/analytics/v3/data/ga?%s'%(encoded_data),
             method=urlfetch.GET,
             headers={'Content-Type': 'application/x-www-form-urlencoded','Authorization':'Bearer %s' % api_settings.access_token})
@@ -595,90 +481,33 @@ def view_reports(request):
                 
             update_list = []
             for i in lead_result:
-                update_dict = {}
-                try:
-                    update_dict['visitscore'] = i['visitscore']
-                except:
-                    update_dict['visitscore'] = 0
-                try:
-                    update_dict['sic'] = i['organisation']['sicprimarycode']
-                except:
-                    update_dict['sic'] = 0
-                try:
-                    update_dict['org_name'] = i['organisation']['name']
-                except:
-                    update_dict['org_name'] = ''
-                try:
-                    update_dict['org_sales'] = i['organisation']['sales']
-                except:
-                    update_dict['org_sales'] = 0
-                try:
-                    update_dict['city'] = i['organisation']['city']
-                except:
-                    update_dict['city'] = ''
-                try:
-                    update_dict['countryname'] = i['organisation']['address']['countryname']
-                except:
-                    update_dict['countryname'] = ''
-                try:
-                    update_dict['continent'] = i['organisation']['address']['continent']
-                except:
-                    update_dict['continent'] = ''
-                try:
-                    update_dict['region'] = i['organisation']['address']['region']
-                except:
-                    update_dict['region'] = ''
-                try:
-                    update_dict['address'] = i['organisation']['address']['address']
-                except:
-                    update_dict['address'] = ''
-                try:
-                    update_dict['no_of_employees'] = i['organisation']['noofemployees']
-                except:
-                    update_dict['no_of_employees'] = ''     
-                    
-                                    
-                for j in i['pageviews']:
-                    update_dict['url'] = j['url']
-                    update_dict['page'] = j['page']
+                update_dict = lead_parse_dict_creation(i)
                 update_list.append(update_dict)
             
             update_list = sorted(update_list, key=lambda l: l['page']) 
-            logging.info(update_list)    
                     
+            logging.info("dict_list dict_list dict_list")
             dict_list = []
             graph_result = []
-            for k in update_list:
+            for update_item in update_list:
                 visitscore = ''
                 ga_visits = ''
-                for j in url_list:
-                    if k['page'] == j:
-                        page = k['page']
-                        url = k['url']
-                        sic = k['sic']
-                        org_name = k['org_name']
-                        org_sales = k['org_sales']
-                        city = k['city']
-                        visitscore = k['visitscore']
-                        countryname = k['countryname']
-                        continent = k['continent']
-                        region = k['region']
-                        address = k['address']
-                        no_of_employees = k['no_of_employees']
-                
-                for g in ga_result['rows']:
-                    if g[0] == k['page']:
-                        ga_visits = g[1]
+                for url_name in url_list:
+                    if update_item['page'] == url_name:
+                        report_details = parse_report_details(update_item)
                         
-                if visitscore and ga_visits:
-                    graph_result.append([int(visitscore), int(ga_visits)])
-                    dict_list.append([page,url,sic,org_name,org_sales,city,visitscore,ga_visits,countryname,continent,region,address,no_of_employees])
-
-            """endsssssssssssss"""    
+                for g in ga_result['rows']:
+                    if g[0] == update_item['page']:
+                        ga_visits = g[1]
                 
+                if report_details[6] and ga_visits:
+                    graph_result.append([int(report_details[6]), int(ga_visits)])
+                    #Report display in template - google analytics visits in 7th position
+                    report_details.insert(7, ga_visits)
+                    dict_list.append(report_details)
+                    
     except Exception as e:
         logging.info(str(e))
-        logging.info(str("2222222222222222222"))
         ga_result = ''
         graph_data = ''
         graph_result = ''
@@ -746,7 +575,6 @@ def customize_reports(request):
     return HttpResponse(json.dumps(response),mimetype="application/json")
 
 
-
 def about_us(request):
     about_us = config_value('leadappsettings','about_us')
     return render(request, 'aboutus.html', {'about_us':about_us})
@@ -758,7 +586,9 @@ def help(request):
 
 
 def lead_list_parsing(lead_result, select_filter, value):
-    
+    '''
+    Lead List Parsing
+    '''
     update_list = []
     try:
        
@@ -784,62 +614,86 @@ def lead_list_parsing(lead_result, select_filter, value):
                     key_arg = str(key_arg)
                 
                 if key_arg == value:
-                    
-                    update_dict = {}
-                    try:
-                        update_dict['visitscore'] = i['visitscore']
-                    except:
-                        update_dict['visitscore'] = 0
-                    try:
-                        update_dict['sic'] = i['organisation']['sicprimarycode']
-                    except:
-                        update_dict['sic'] = 0
-                    try:
-                        update_dict['org_name'] = i['organisation']['name']
-                    except:
-                        update_dict['org_name'] = ''
-                    try:
-                        update_dict['org_sales'] = i['organisation']['sales']
-                    except:
-                        update_dict['org_sales'] = 0
-                    try:
-                        update_dict['city'] = i['organisation']['city']
-                    except:
-                        update_dict['city'] = ''
-                    try:
-                        update_dict['countryname'] = i['organisation']['address']['countryname']
-                    except:
-                        update_dict['countryname'] = ''
-                    try:
-                        update_dict['continent'] = i['organisation']['address']['continent']
-                    except:
-                        update_dict['continent'] = ''
-                    try:
-                        update_dict['region'] = i['organisation']['address']['region']
-                    except:
-                        update_dict['region'] = ''
-                    try:
-                        update_dict['address'] = i['organisation']['address']['address']
-                    except:
-                        update_dict['address'] = ''
-                    try:
-                        update_dict['no_of_employees'] = i['organisation']['noofemployees']
-                    except:
-                        update_dict['no_of_employees'] = ''     
-                        
-                                        
-                    for j in i['pageviews']:
-                        update_dict['url'] = j['url']
-                        update_dict['page'] = j['page']
+                    update_dict = lead_parse_dict_creation(i)
                     update_list.append(update_dict)
             except:
                 pass
-        
         return update_list
     
     except Exception as e:
         logging.info("Exception in - lead_list_parsing")
         logging.info(str(e))
-        import sys, traceback
-        traceback.print_exc()
         return update_list
+
+
+def lead_parse_dict_creation(i):
+    '''
+    Parse the lead list and update the dictionary.
+    '''
+    update_dict = {}
+    try:
+        update_dict['visitscore'] = i['visitscore']
+    except:
+        update_dict['visitscore'] = 0
+    try:
+        update_dict['sic'] = i['organisation']['sicprimarycode']
+    except:
+        update_dict['sic'] = 0
+    try:
+        update_dict['org_name'] = i['organisation']['name']
+    except:
+        update_dict['org_name'] = ''
+    try:
+        update_dict['org_sales'] = i['organisation']['sales']
+    except:
+        update_dict['org_sales'] = 0
+    try:
+        update_dict['city'] = i['organisation']['city']
+    except:
+        update_dict['city'] = ''
+    try:
+        update_dict['countryname'] = i['organisation']['address']['countryname']
+    except:
+        update_dict['countryname'] = ''
+    try:
+        update_dict['continent'] = i['organisation']['address']['continent']
+    except:
+        update_dict['continent'] = ''
+    try:
+        update_dict['region'] = i['organisation']['address']['region']
+    except:
+        update_dict['region'] = ''
+    try:
+        update_dict['address'] = i['organisation']['address']['address']
+    except:
+        update_dict['address'] = ''
+    try:
+        update_dict['no_of_employees'] = i['organisation']['noofemployees']
+    except:
+        update_dict['no_of_employees'] = ''     
+        
+    for j in i['pageviews']:
+        update_dict['url'] = j['url']
+        update_dict['page'] = j['page']
+    
+    return update_dict
+
+
+def parse_report_details(updated_item):
+    '''
+    Parse the report details
+    '''
+    page = updated_item['page']
+    url = updated_item['url']
+    sic = updated_item['sic']
+    org_name = updated_item['org_name']
+    org_sales = updated_item['org_sales']
+    city = updated_item['city']
+    visitscore = updated_item['visitscore']
+    countryname = updated_item['countryname']
+    continent = updated_item['continent']
+    region = updated_item['region']
+    address = updated_item['address']
+    no_of_employees = updated_item['no_of_employees']
+    
+    return [page, url, sic, org_name, org_sales, city,visitscore, countryname, continent, region,address, no_of_employees]

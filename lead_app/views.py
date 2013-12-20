@@ -236,7 +236,7 @@ def view_reports(request):
             if len(page_list) == 1:
                 page_list = page_title.split('http://')
             
-            generate_url = 'http://openapi.leadenhancer.com/v1/leadopenapi/visits?token=%s&fromdate=%s&todate=%s&countriesiso=DE&pagenames=%s'% (lead_api_settings.lead_token,str(from_date),str(to_date),str(page_title))
+            generate_url = 'http://openapi.leadenhancer.com/v1/leadopenapi/visits?token=%s&fromdate=%s&todate=%s&countriesiso=DE'% (lead_api_settings.lead_token,str(from_date),str(to_date))
             
             lead_data = {
             'token':lead_api_settings.lead_token,#67560806,77873725
@@ -279,9 +279,7 @@ def view_reports(request):
                         update_list.append(update_dict)
                     
                     update_list = sorted(update_list, key=lambda l: l['page'])
-                    logging.info("Generate update_list")
-                    logging.info(update_list)
-        
+                    
                     dict_list = []
                     graph_result = []
                     for updated_item in update_list:
@@ -334,7 +332,6 @@ def view_reports(request):
                 pass
             
             select_filter = request.POST['select_filter']
-            logging.info(select_filter)
             
             url = 'http://openapi.leadenhancer.com/v1/leadopenapi/visits?token=%s&fromdate=%s&todate=%s&countriesiso=DE'% (lead_api_settings.lead_token,from_date,to_date)
 
@@ -377,15 +374,13 @@ def view_reports(request):
                     update_list = lead_list_parsing(lead_result, select_filter, request.POST['filter_val'].strip(' '))
                     
                     update_list = sorted(update_list, key=lambda l: l['page'])
-                    logging.info("FILTER update_list")
-                    logging.info(update_list)
                             
                     dict_list = []
                     graph_result = []
                     for new_item in update_list:
                         visitscore = ''
                         ga_visits = ''
-                        
+                        report_details = []
                         for ga_url in url_list:                         
    			    #Check page title is url or page title
                             if len(page_list) > 1:
@@ -398,18 +393,17 @@ def view_reports(request):
                             else:
                                 if new_item['page'] == ga_url:
                                     report_details = parse_report_details(new_item)
-
-                        for ga_res in ga_result['rows']:
-                            if ga_res[0] == new_item['page']:
-                                ga_visits = ga_res[1]
                         
-                        if report_details[6] and ga_visits:
-                            graph_result.append([int(report_details[6]), int(ga_visits)])
-                            #Report display in template - google analytics visits in 7th position
-                            report_details.insert(7, ga_visits)
-                            dict_list.append(report_details)
-                    
-                    logging.info(dict_list)
+                        if report_details:
+                            for ga_res in ga_result['rows']:
+                                if ga_res[0] == new_item['page']:
+                                    ga_visits = ga_res[1]
+                            
+                            if report_details[6] and ga_visits:
+                                graph_result.append([int(report_details[6]), int(ga_visits)])
+                                #Report display in template - google analytics visits in 7th position
+                                report_details.insert(7, ga_visits)
+                                dict_list.append(report_details)
             
             except Exception as e:
                 logging.info(str(e))
@@ -486,25 +480,26 @@ def view_reports(request):
             
             update_list = sorted(update_list, key=lambda l: l['page']) 
                     
-            logging.info("dict_list dict_list dict_list")
             dict_list = []
             graph_result = []
             for update_item in update_list:
                 visitscore = ''
                 ga_visits = ''
+                report_details = []
                 for url_name in url_list:
                     if update_item['page'] == url_name:
                         report_details = parse_report_details(update_item)
-                        
-                for g in ga_result['rows']:
-                    if g[0] == update_item['page']:
-                        ga_visits = g[1]
                 
-                if report_details[6] and ga_visits:
-                    graph_result.append([int(report_details[6]), int(ga_visits)])
-                    #Report display in template - google analytics visits in 7th position
-                    report_details.insert(7, ga_visits)
-                    dict_list.append(report_details)
+                if report_details:
+                    for g in ga_result['rows']:
+                        if g[0] == update_item['page']:
+                            ga_visits = g[1]
+                    
+                    if report_details[6] and ga_visits:
+                        graph_result.append([int(report_details[6]), int(ga_visits)])
+                        #Report display in template - google analytics visits in 7th position
+                        report_details.insert(7, ga_visits)
+                        dict_list.append(report_details)
                     
     except Exception as e:
         logging.info(str(e))

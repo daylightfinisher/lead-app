@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}<title>Settings Page</title>{% endblock title %}
+{% block extra-script %}
+<link rel="stylesheet" href="{{STATIC_URL}}css/Theme1.css" type="text/css">
+
+<script type="text/javascript" src="{{STATIC_URL}}js/jquery.min.js"></script>
+<script type="text/javascript" src="{{STATIC_URL}}js/zebra_datepicker.js"></script>
+<script type="text/javascript" src="{{STATIC_URL}}js/myscript.js"></script>
+
+<!--[if lt IE 9]>
+<script src="{{STATIC_URL}}js/html5shiv.js"></script>
+<![endif]-->
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+<script>
+$(document).ready(function(){
+  $("#submit_ga").click(function(){
+   var ga_val =  $("#ga_id").val().trim();
+   if(ga_val==''){
+    alert('Enter a profile id to connect with Google Analytics');
+    return false
+    
+   }
+  });
+  
+  $("#submit_lead").click(function(){
+   var lead_val =  $("#lead_id").val().trim();
+   if(lead_val==''){
+    alert('Enter a Token Id');
+    return false
+    
+   }
+  });
+});
+</script>
+<script>
+function setResult1()
+{
+document.getElementById("ga_id").readOnly=false;
+}
+</script>
+<script>
+function setResult2()
+{
+document.getElementById("lead_id").readOnly=false;
+}
+</script>
+{% endblock extra-script %}
+{% block container %}
+<div class="container">
+       <div class="content1">                
+           <div class="reports">
+               <h3><span class="left"><img src="{{STATIC_URL}}images/settings.png" alt=" "></span><span class="texthead">Settings</span></h3>
+               <div id="settings">
+                   {% if info_msg %}
+                       <p style="margin-bottom: 20px;color: red;">{{info_msg}}</p>
+                   {% endif %}
+                   <div id="setting1">
+                       <div class="setin">
+                           <h2><img src="{{STATIC_URL}}images/analytics.png" alt=" "/>Google Analytics API</h2>
+                           <form id="login" name="google_analytics" action='/' method="post">
+                               {% csrf_token %}
+                               <div class="cover2"><label class="label">Profile ID</label></div>
+                               <br/>
+                               <div class="cover2"><input type="text" id="ga_id" name="profile_id" value="{{ga_api.ga_profile_id}}" {% if ga_api.ga_profile_id %}style="color: black;"{% endif %} /></div>
+                               <br/>
+                               <input type="submit" class="btn" id="submit_ga" value="Connect Google Analytics Account" style="margin-left: 9px;" />
+                           </form>
+                       </div>
+                       <div id="shadow11"></div>
+                   </div>
+
+                   <div id="setting2">
+                       <div class="setin">
+                           <h2><img src="{{STATIC_URL}}images/analytics2.png" alt=" "/>Leadenhancer Open API</h2>
+                           {% if msg %}
+                           <p>{{msg}}</p>
+                           {% endif %} 
+                           <form id="login" name="lead" action='/' method="post">
+                               {% csrf_token %}
+                               <div class="cover2"><label class="label">Access Token</label></div>                                    
+                               <br/>
+                               <div class="cover2"><input type="text" id="lead_id" name="token_id" value="{{lead_api.lead_token}}" {% if lead_api.lead_token %}style="color: black;"{% endif %} /></div>
+                               <br/>
+                               <input type="submit" class="btn" id="submit_lead" value="Save" style="margin-left: 9px;"/>
+                           </form>
+                       </div>
+                       <div id="shadow11"></div>
+                   </div>
+               </div>
+           </div>
+       </div>
+       <div id="shadow"></div>
+   </div>
+{% endblock container %}
+

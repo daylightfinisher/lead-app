@@ -1,0 +1,89 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+        {% block title %}<title>GoogleApps - Settings</title>{% endblock title %}
+        {% block extra-script %}
+        <link rel="stylesheet" href="{{STATIC_URL}}css/Theme1.css" type="text/css">
+
+        <script type="text/javascript" src="{{STATIC_URL}}js/jquery.min.js"></script>
+        <script type="text/javascript" src="{{STATIC_URL}}js/zebra_datepicker.js"></script>
+        <script type="text/javascript" src="{{STATIC_URL}}js/myscript.js"></script>
+
+        <!--[if lt IE 9]>
+        <script src="{{STATIC_URL}}js/html5shiv.js"></script>
+        <![endif]-->
+        {% endblock extra-script %}
+    </head>
+
+
+
+    <body>
+        {% block header %}
+        <div id="header">
+            <div class="container">
+                <div class="logo"><a href="/" ><img src="{{STATIC_URL}}images/logo.png"/></a></div>
+                <div class="menu">
+                    <ul>
+                        {% if user.is_authenticated %}
+                        <li><a href="/logout/">Logout</a></li>
+                        {% else %}
+                        <li><a href="/login/">Login</a></li>    
+                        {% endif %}    
+                        <li><a href="/help/">How To</a></li>
+                        <li><a href="/about-us/">About</a></li>
+                        <li><a href="/" id="current">Settings</a></li>
+                        <li><a href="/view-report/">Reports</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        {% endblock header %}
+        {% block container %} 
+        <div class="container">
+            <div class="content1">                
+                <div class="reports">
+                    <h3><span class="left"><img src="{{STATIC_URL}}images/settings.png" alt=" "></span><span class="texthead">Settings</span></h3>
+
+                    <div id="settings">
+                        <div id="setting1">
+                            <div class="setin">
+                                <h2><img src="{{STATIC_URL}}images/analytics.png" alt=" "/>Google Analytics API</h2>
+                                <form id="login" action="#" method="post">
+                                    <div class="cover2"><label class="label">Profile ID</label></div>
+                                    <br/>
+                                    <div class="cover2"><input type="text" /></div>
+                                    <br/>
+                                    <input type="button" class="btn" value="Connect Google Analytics Account" style="margin-left: 9px;" />
+                                </form>
+                            </div>
+                            <div id="shadow11"></div>
+                        </div>
+
+                        <div id="setting2">
+                            <div class="setin">
+                                <h2><img src="{{STATIC_URL}}images/analytics2.png" alt=" "/>Leadenhancer Open API</h2>
+                                <form id="login" action="#" method="post">
+                                    <div class="cover2"><label class="label">Access Token</label></div>                                    
+                                    <br/>
+                                    <div class="cover2"><input type="text" /></div>
+                                    <br/>
+                                    <input type="button" class="btn" value="Save" style="margin-left: 9px;"/>
+                                </form>
+                            </div>
+                            <div id="shadow11"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="shadow"></div>
+        </div>
+      {% endblock container %}
+      {% block footer %}
+        <div id="footer">
+            <div class="container">
+                <p>Copyright 2013 Trend Micro Incorporated. All rights reserved</p>
+            </div>
+        </div>
+      {% endblock footer %}  
+    </body>
+</html>

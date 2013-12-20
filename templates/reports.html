@@ -1,0 +1,355 @@
+{% extends 'base.html' %}
+{% block title %}<title>Reports Page</title>{% endblock title %}
+{% block extra-script %}
+<link rel="stylesheet" href="{{STATIC_URL}}css/Theme1.css" type="text/css">
+
+<!--[if lt IE 9]>
+<script src="{{STATIC_URL}}js/html5shiv.js"></script>
+<!--[endif]---->  
+  
+  
+<link rel="stylesheet" href="http://code.jquery.com/ui/1.10.3/themes/smoothness/jquery-ui.css">
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+<script src="http://code.jquery.com/jquery-1.9.1.js"></script>
+<script src="http://code.jquery.com/ui/1.10.3/jquery-ui.js"></script>
+<script type="text/javascript" src="https://www.google.com/jsapi"></script>
+    <script type="text/javascript">
+      google.load("visualization", "1", {packages:["corechart"]});
+      google.setOnLoadCallback(drawChart);
+      function drawChart() { 
+      var dataTable = new google.visualization.DataTable();
+      dataTable.addColumn('number', 'LeadEnhancer');
+      dataTable.addColumn('number', 'GoogleAnalytics');
+      dataTable.addRows(
+      {{graph_result|safe}}
+      );
+
+      var dataView = new google.visualization.DataView(dataTable);
+      dataView.setColumns([{calc: function(data, row) { return ''; }, type:'string'}, 0, 1]);
+
+      var chart = new google.visualization.LineChart(document.getElementById('chart_div'));
+      var options = {
+        width: 950, height: 600,
+        chartArea:{right: 40,width:"80%",height:"80%"},
+        legend: 'none',
+        pointSize: 5,
+        title: 'Chart by Visits',
+        vAxis: {title: "Visits Count"},
+        {% if from_date %}
+        hAxis:{title:" from {{from_date}} to {{to_date}} " },  
+        {% else %}
+        hAxis: {title: "For Last 30 Days"},  
+        {% endif %}  
+      };
+      chart.draw(dataView, options);
+      }
+    </script>
+<script>
+$(function() {
+$( "#from_date" ).datepicker({
+defaultDate: "+1w",
+changeMonth: true,
+numberOfMonths: 1,
+dateFormat:"yy-mm-dd",
+maxDate: new Date(),
+onClose: function( selectedDate ) {
+$( "#to_date" ).datepicker( "option", "minDate", selectedDate,"dateFormat", "yy-mm-dd" );
+}
+});
+$( "#to_date" ).datepicker({
+defaultDate: "+1w",
+changeMonth: true,
+numberOfMonths: 1,
+dateFormat:"yy-mm-dd",
+maxDate: new Date(),
+onClose: function( selectedDate ) {
+$( "#from_date" ).datepicker("option","maxDate", selectedDate,"dateFormat", "yy-mm-dd" );
+}
+});
+});
+</script>
+<script>
+$(document).ready(function(){
+     $("#generate").click(function(){
+     //var form_data = $('#generate_form').serialize();
+     var from_val = $('#from_date').val().trim();
+     var to_val = $('#to_date').val().trim();
+     var title_val = $('.page_title').val().trim();
+     if (from_val == '' && to_val == '' && title_val == ''){
+        alert('Enter Either Date Range or Page Title To Generate Report');
+        return false
+     }
+     
+    });
+    $('#customize').click(function(){
+      var form_data = $('#report_form').serialize();
+      //alert(form_data)
+      //return false
+      $.ajax({
+         url: "/customize-report/",
+         type: "POST",
+         data: form_data,
+         success: function(result) {
+            alert('The Details Are Been Updated');
+            window.location.reload();
+          }
+          
+       }); 
+    });
+    
+    
+    $('#creport').click(function() {
+        $('.creport,#closebtn').css({
+            'display': 'block'
+        });
+    });
+    $('#closebtn').click(function() {
+        $('.creport,#closebtn').css({
+            'display': 'none'
+        });
+    });
+    
+    
+    
+    $('#filter').click(function(){
+    var enter_val = $('#filter_val').val().trim();
+    var select_val = $('#filter_select').val().trim();
+    if (select_val == 'Select'){
+    alert('Select a value to filter');
+    return false
+    }
+    if (enter_val == ''){
+    alert('Enter a value to filter');
+    return false
+    }
+    if(select_val == 'SIC'){
+    var value = $('#filter_val').val().replace(/^\s\s*/, '').replace(/\s\s*$/, '');
+    var intRegex = /^\d+$/;
+    if(!intRegex.test(value)) {
+        alert('SIC value should be numeric');;
+        return false  
+    }
+    
+    }
+    
+    if(select_val == 'Revenue'){
+    var value = $('#filter_val').val().replace(/^\s\s*/, '').replace(/\s\s*$/, '');
+    var intRegex = /^\d+$/;
+    if(!intRegex.test(value)) {
+        alert('Revenue value should be numeric');;
+        return false  
+    }
+    
+    }
+    });
+
+     
+     
+});    
+</script>     
+
+{% endblock extra-script %}
+
+        {% block header %}
+        <div id="header">
+            <div class="container">
+                <div class="logo"><a href="/" ><img src="{{STATIC_URL}}images/logo.png"/></a></div>
+                <div class="menu">
+                    <ul>
+                        {% if user.is_authenticated %}
+                        <li><a href="/logout/">Logout</a></li>
+                        {% else %}
+                        <li><a href="/login/">Login</a></li>    
+                        {% endif %}    
+                        <li><a href="/help/">How To</a></li>
+                        <li><a href="/about-us/">About</a></li>
+                        <li><a href="/">Settings</a></li>
+                        <li><a href="/view-report/" id="current">Reports</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+      {% endblock header %}
+      
+{% block container %}
+
+  <div class="container">
+            <div class="content1">                
+                <div class="reports">
+                    <h3><span class="left"><img src="{{STATIC_URL}}images/reports.png" alt=" "></span><span class="texthead">Reports</span></h3>
+                    {% if msg %}
+                    <p style="text-align:center;color:red">{{msg}}</p>
+                    {% endif %}
+                    <div class="reportform">
+                        <form id="reportform" action="/view-report/" method="post" name="generate_form">
+                            <div class="textbox">
+                                <label>Select Date</label>
+                                <br/>
+                                <span style="float: left;">
+                                    <input type="text" id="from_date" class="from" name="from_date" style="width: 120px;" readonly="readonly" placeholder="{{from_date}}" value="{{from_date}}" />
+                                    <input type="text" id="to_date" class="to" name='to_date' style="width: 120px; margin-left: 35px;" readonly="readonly" placeholder="{{to_date}}" value="{{to_date}}" />
+                                </span>
+                            </div>
+                            <div class="textbox">
+                                <label>Enter Page Title or URL</label>
+                                <br/>
+                                <span>
+                                    <input type="text" id="datepick" name='page_title' class="page_title" style="width: 300px;" placeholder="{{page_title}}" value="{{page_title}}" />
+                                    <input type="submit" class="btn" id="generate" value="Generate" style="margin-left: 20px;"/>
+                                </span>
+                            </div>
+                        </form>
+                        <form name="filter_form" id="filter_form" action="/view-report/" method="post">
+                            <div class="textbox">
+                                <label>Enter</label>
+                                <br/>
+                                <span>
+                                    <input type="text" id="filter_val" name="filter_val" style="width: 300px;" placeholder="{{name_val}}" value="{{name_val}}"/>
+                                    <input type="hidden" name="filters" style="width: 300px;"/>
+                                </span>
+                            </div>
+                            <div class="textbox">
+                                <div class="textcover" style="float: left; margin-top: 40px; width: auto;"> 
+                                    <select style="width: 320px;" name="select_filter" id="filter_select">
+                                        <option value="Select" {% if select_filter == 'Select' %}selected=""{% endif %}>Select</option>
+                                        <option {% if select_filter == 'Organisation name' %}selected=""{% endif %}>Organisation name</option>
+                                        <option {% if select_filter == 'SIC' %}selected=""{% endif %}>SIC</option>
+                                        <option {% if select_filter == 'Revenue' %}selected=""{% endif %}>Revenue</option>
+                                        <option {% if select_filter == 'Location' %}selected=""{% endif %}>Location</option>
+                                        <option {% if select_filter == 'No. of Employees' %}selected=""{% endif %}>No. of Employees</option>
+                                    </select>                                
+                                    <span>
+                                        <input type="submit" id="filter" class="btn" value="Filter" style="margin-left: 20px;"/><br/>
+                                        <a style="cursor:pointer" id="creport">Customize your report</a>
+                                    </span>
+                                </div>
+                            </div>                            
+                        </form>
+                    </div>                    
+
+                    <div id="shadow2"></div>
+
+                    <div class="creport">
+                        <span><img src="{{STATIC_URL}}images/creport.png"/></span><h3>Customize Your Report</h3>
+                        <P>Please select the metrics to display on your report table</P>
+                        <form action="#" method="post" id="report_form">
+                            {% csrf_token %}
+                            <div class="maincover">
+                                <div class="cover"><input type="checkbox" name="page_title" value="True" {% ifequal lead_api_settings.page_title 1 %} checked {% endifequal %} /> Page Title</div>
+                                <div class="cover"><input type="checkbox" name="page_url" value="True" {% ifequal lead_api_settings.page_url 1 %} checked {% endifequal %} /> Page URL</div>
+                                <div class="cover"><input type="checkbox" name="lead_visits" value="True" checked disabled /> No of Visits(Leadenhancer)</div>
+                                <div class="cover"><input type="checkbox" name="ga_visits" value="True" checked disabled /> No of Visits (GA)</div>
+                                <div class="cover"><input type="checkbox" name="sic" value="True"  checked disabled /> SIC</div>
+                                <div class="cover"><input type="checkbox" name="org_name" value="True" checked disabled /> Organization Name</div>
+                                <div class="cover"><input type="checkbox" name="revenue" value="True" {% ifequal lead_api_settings.revenue 1 %} checked {% endifequal %} /> Revenue</div>
+                                <div class="cover"><input type="checkbox" name="no_emp" value="True" {% ifequal lead_api_settings.no_of_employees 1 %} checked {% endifequal %} /> No. of Employees</div>
+                                <div class="cover"><input type="checkbox" name="city" value="True" checked {% ifequal lead_api_settings.city 1 %} checked {% endifequal %} /> City</div>
+                                <div class="cover"><input type="checkbox" name="region" value="True" {% ifequal lead_api_settings.region 1 %} checked {% endifequal %} /> Region</div>
+                                <div class="cover"><input type="checkbox" name="country" value="True" {% ifequal lead_api_settings.country 1 %} checked {% endifequal %} /> Country</div>
+                                <div class="cover"><input type="checkbox" name="continent" value="True" {% ifequal lead_api_settings.continent 1 %} checked {% endifequal %} /> Continent</div>
+                                <div class="cover"><input type="checkbox" name="address" value="True" {% ifequal lead_api_settings.address 1 %} checked {% endifequal %} /> Address</div>
+                            </div>
+                            <div class="cover1"><input type="button" id="customize" class="btn" value="Save"/></div>
+                            <div class="cover1"><input type="button" class="btn" value="Clear"/></div>
+                        </form>
+                    </div>
+
+                    <div id="closebtn"></div>
+
+                    <div class="chart">
+                        <h2><span><img src="{{STATIC_URL}}images/chart.png" alt=" "></span>Chart By Visits</h2>
+                        <div class="graph" id="chart_div" style="width:997px; height:600px; margin: 0 auto;"></div>
+                        <div id="shadow3"></div>
+                    </div>
+                    
+                    <div class="table_01">
+                        <table border="0" class="table table_02" cellspacing="0" >
+                            <tr>
+                                {% ifequal lead_api_settings.page_title 1 %}
+                                <th style="width:182px;">Page Title</th>
+                                {% endifequal %}
+                                {% ifequal lead_api_settings.page_url 1 %}
+                                <th style="width:311px;">Page URL</th>
+                                {% endifequal %}
+                                <th style="width:182px;">SIC</th>
+                                <th style="width:155px;">Organization<br/> Name</th>
+                                {% ifequal lead_api_settings.revenue 1 %}
+                                <th style="width:108px;">Revenue</th>
+                                {% endifequal %}
+                                {% ifequal lead_api_settings.city 1 %}
+                                <th style="width:65px;">City</th>
+                                {% endifequal %}
+                                <th align="center" style="width:83px;">No.of Visits<br/>(Leadenhancer)</th>
+                                <th align="center" style="width:83px;">No.of Visits(GA)</th>
+                                {% ifequal lead_api_settings.country 1 %}
+                                <th align="center" style="width:83px;">Country</th>
+                                {% endifequal %}
+                                {% ifequal lead_api_settings.continent 1 %}
+                                <th align="center" style="width:83px;">Continent</th>
+                                {% endifequal %}
+                                {% ifequal lead_api_settings.region 1 %}
+                                <th align="center" style="width:83px;">Region</th>
+                                {% endifequal %}
+                                {% ifequal lead_api_settings.address 1 %}
+                                <th align="center" style="width:83px;">Address</th>
+                                {% endifequal %}
+                                {% ifequal lead_api_settings.no_of_employees 1 %}
+                                <th align="center" style="width:83px;">No. of Employees</th>
+                                {% endifequal %}
+
+                            </tr>
+                            
+                            {% for item in dict_list %}
+                              
+                            <tr>
+                              {% ifequal lead_api_settings.page_title 1 %}
+                              <td>{{item.0}}</td>
+                              {% endifequal %}
+                              {% ifequal lead_api_settings.page_url 1 %}
+                              <td>{{item.1}}</td>
+                              {% endifequal %}
+                              <td>{{item.2}}</td>
+                              <td>{{item.3}}</td>
+                              {% ifequal lead_api_settings.revenue 1 %}
+                              <td>{{item.4}}</td>
+                              {% endifequal %}
+                              {% ifequal lead_api_settings.city 1 %}
+                              <td>{{item.5}}</td>
+                              {% endifequal %}
+                              <td align="center">{{item.6}}</td>
+                              <td align="center">{{item.7}}</td>
+                              {% ifequal lead_api_settings.country 1 %}
+                              <td align="center">{{item.8}}</td>
+                              {% endifequal %}
+                              {% ifequal lead_api_settings.continent 1 %}
+                              <td align="center">{{item.9}}</td>
+                              {% endifequal%}
+                              {% ifequal lead_api_settings.region 1 %}
+                              <td align="center">{{item.10}}</td>
+                              {% endifequal %}
+                              {% ifequal lead_api_settings.address 1 %}
+                              <td align="center">{{item.11}}</td>
+                              {% endifequal %}
+                              {% ifequal lead_api_settings.no_of_employees 1 %}
+                              <td align="center">{{item.12}}</td>
+                              {% endifequal %}
+                            </tr>
+                            
+                            {% empty %}
+                              <tr>
+                                <td colspan="13">
+                                  Data not available.
+                                </td>
+                              </tr>
+                            {% endfor %}
+
+                        </table>
+                        </div>  
+ 
+                </div>
+            </div>
+            <div id="shadow"></div>
+        </div>
+
+{% endblock container %}
+

@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+
+        {% block title %}<title>GoogleApps - How To</title>{% endblock title %}
+
+        {% block header %}
+        <div id="header">
+            <div class="container">
+                <div class="logo"><a href="/" ><img src="{{STATIC_URL}}images/logo.png"/></a></div>
+                <div class="menu">
+                    <ul>
+                        {% if user.is_authenticated %}
+                        <li><a href="/logout/">Logout</a></li>
+                        {% else %}
+                        <li><a href="/login/">Login</a></li>    
+                        {% endif %}    
+                        <li><a href="/help/" id="current">How To</a></li>
+                        <li><a href="/about-us/" >About</a></li>
+                        <li><a href="/" >Settings</a></li>
+                        <li><a href="/view-report/">Reports</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        {% endblock header %}
+
+{% block container %}
+
+        <div class="container">
+            <div class="content1">                
+                <div class="reports">
+                    <h3><span class="left"><img src="{{STATIC_URL}}images/howto.png" alt=" "></span><span class="texthead">How To</span></h3>
+                    <div class="about">                        
+                        <p>{{how_to|safe}}</p>
+                    </div>
+               </div>
+
+
+            </div>
+            <div id="shadow"></div>
+        </div>
+{% endblock container %}

@@ -12,6 +12,7 @@ import logging
 import json
 import urllib
 import urllib2
+import unicodedata
 
 from google.appengine.api import urlfetch
 from lead_app.models import Api_Settings,LeadApi_Settings
@@ -243,12 +244,20 @@ def view_reports(request):
             'fromdate':str(from_date),#'2012-03-03',
             'todate':str(to_date),#'2013-11-09',
             'countriesiso':'DE',
+            'limit':10000,
             }
                 
-            lead_encoded_data = urllib.urlencode(lead_data)
-            lead_gen_result = urllib2.Request('http://openapi.leadenhancer.com/v1/leadopenapi/visits?%s'%(lead_encoded_data))
-            lead_api_response = urllib2.urlopen(lead_gen_result)
-            generate_lead_result = json.loads(lead_api_response.read())
+            #lead_encoded_data = urllib.urlencode(lead_data)
+            #lead_gen_result = urllib2.Request('http://openapi.leadenhancer.com/v1/leadopenapi/visits?%s'%(lead_encoded_data))
+            #lead_api_response = urllib2.urlopen(lead_gen_result)
+            #generate_lead_result = json.loads(lead_api_response.read())
+            
+            url = 'http://openapi.leadenhancer.com/v1/leadopenapi/visits?token=%s&fromdate=%s&todate=%s&limit=10000&countriesiso=DE'% (lead_api_settings.lead_token,from_date,to_date)
+            
+            urlfetch.set_default_fetch_deadline(45)
+            result = urlfetch.fetch(url)
+            generate_lead_result = json.loads(result.content)
+            
             
             #GA Report encoded data creation
             data = {
@@ -256,8 +265,9 @@ def view_reports(request):
                 'start-date':from_date,#'2012-03-03'
                 'end-date':to_date,#'2013-11-09',
                 'metrics':'ga:visits',
-                'dimensions':'ga:pageTitle',
-                'alt':'json'
+                'dimensions':'ga:pageTitle,ga:date',
+                'alt':'json',
+                
                 }
                         
             encoded_data = urllib.urlencode(data)
@@ -303,13 +313,33 @@ def view_reports(request):
                         if report_details:
                             for ga_visit_count in ga_result['rows']:
                                 if ga_visit_count[0] == updated_item['page']:
-                                    ga_visits = ga_visit_count[1]
+                                    ga_visits = ga_visit_count[2]
+                                    ga_startdate = ga_visit_count[1]
                                     
                             if report_details[6] and ga_visits:
+                                ga_start_date = ga_startdate[:4]+'-'+ga_startdate[4:6]+'-'+ga_startdate[6:]
                                 graph_result.append([int(report_details[6]), int(ga_visits)])
                                 #Report display in template - google analytics visits in 7th position
                                 report_details.insert(7, ga_visits)
+                                report_details.insert(14, ga_start_date)
                                 dict_list.append(report_details)
+                    
+                    list_data = []
+                    lead_count = int(0)
+                    ga_count = int(0)
+                    for i in dict_list:
+                        lead_count = lead_count + int(i[6])
+                        ga_count = ga_count + int(i[7])
+                        ga_tooltip_one = unicodedata.normalize('NFKD', i[0]).encode('ascii','ignore') +'--'+ str(i[7])
+                        lead_tooltip_one = unicodedata.normalize('NFKD', i[0]).encode('ascii','ignore') +'--'+ str(i[6])
+                        ga_tooltip_two = unicodedata.normalize('NFKD', i[0]).encode('ascii','ignore') +'--'+ '0'
+                        lead_tooltip_two = unicodedata.normalize('NFKD', i[0]).encode('ascii','ignore') +'--'+ '0'
+                        if i[13] == i[14]:
+                            list_data.append([str(i[14]),int(i[6]),ga_tooltip_one,int(i[7]),lead_tooltip_one])
+                        else:
+                            list_data.append([str(i[13]),int(i[6]),lead_tooltip_one,int(0),ga_tooltip_two])
+                            list_data.append([str(i[14]),int(0),lead_tooltip_two,int(i[7]),ga_tooltip_one])
+                    list_data = sorted(list_data, key=lambda x: datetime.strptime(x[0], '%Y-%m-%d'))                        
                 
             except Exception as e:
                 logging.info(str(e))
@@ -317,8 +347,11 @@ def view_reports(request):
                 graph_data = ''
                 graph_result = ''
                 dict_list = ''
+                list_data = ''
+                lead_count = ''
+                ga_count = ''
                 pass
-            return render(request, 'reports.html', {'ga_result':ga_result,'graph_result':graph_result,'dict_list':dict_list,'from_date':from_date,'to_date':to_date,'lead_api_settings':lead_api_settings, 'page_title':page_title})
+            return render(request, 'reports.html', {'ga_result':ga_result,'graph_result':graph_result,'dict_list':dict_list,'from_date':from_date,'to_date':to_date,'lead_api_settings':lead_api_settings, 'page_title':page_title,'list_data':list_data,'lead_count':lead_count,'ga_count':ga_count})
         
         elif 'filters' in request.POST:
             #Get the session values and pass the data to template
@@ -333,7 +366,7 @@ def view_reports(request):
             
             select_filter = request.POST['select_filter']
             
-            url = 'http://openapi.leadenhancer.com/v1/leadopenapi/visits?token=%s&fromdate=%s&todate=%s&countriesiso=DE'% (lead_api_settings.lead_token,from_date,to_date)
+            url = 'http://openapi.leadenhancer.com/v1/leadopenapi/visits?token=%s&fromdate=%s&todate=%s&limit=10000&countriesiso=DE'% (lead_api_settings.lead_token,from_date,to_date)
 
             #Using Page title and generate the report while filtering
             if page_title:
@@ -344,6 +377,7 @@ def view_reports(request):
             else:
                 page_list = []
             
+            urlfetch.set_default_fetch_deadline(45)
             result = urlfetch.fetch(url)
             
             #Google Analytics Data
@@ -352,8 +386,8 @@ def view_reports(request):
                 'start-date':from_date,#'2012-03-03',str(from_date),
                 'end-date':to_date,#str(to_date),#'2013-11-09',
                 'metrics':'ga:visits',
-                'dimensions':'ga:pageTitle',#'ga:pagePath',
-                'alt':'json'
+                'dimensions':'ga:pageTitle,ga:date',#'ga:pagePath',
+                'alt':'json',
                 }
             
             encoded_data = urllib.urlencode(data)
@@ -397,13 +431,33 @@ def view_reports(request):
                         if report_details:
                             for ga_res in ga_result['rows']:
                                 if ga_res[0] == new_item['page']:
-                                    ga_visits = ga_res[1]
+                                    ga_visits = ga_res[2]
+                                    ga_startdate = ga_res[1]
                             
                             if report_details[6] and ga_visits:
+                                ga_start_date = ga_startdate[:4]+'-'+ga_startdate[4:6]+'-'+ga_startdate[6:]
                                 graph_result.append([int(report_details[6]), int(ga_visits)])
                                 #Report display in template - google analytics visits in 7th position
                                 report_details.insert(7, ga_visits)
+                                report_details.insert(14, ga_start_date)
                                 dict_list.append(report_details)
+                    
+                    list_data = []
+                    lead_count = int(0)
+                    ga_count = int(0)
+                    for i in dict_list:
+                        lead_count = lead_count + int(i[6])
+                        ga_count = ga_count + int(i[7])
+                        ga_tooltip_one = unicodedata.normalize('NFKD', i[0]).encode('ascii','ignore') +'--'+ str(i[7])
+                        lead_tooltip_one = unicodedata.normalize('NFKD', i[0]).encode('ascii','ignore') +'--'+ str(i[6])
+                        ga_tooltip_two = unicodedata.normalize('NFKD', i[0]).encode('ascii','ignore') +'--'+ '0'
+                        lead_tooltip_two = unicodedata.normalize('NFKD', i[0]).encode('ascii','ignore') +'--'+ '0'
+                        if i[13] == i[14]:
+                            list_data.append([str(i[14]),int(i[6]),ga_tooltip_one,int(i[7]),lead_tooltip_one])
+                        else:
+                            list_data.append([str(i[13]),int(i[6]),lead_tooltip_one,int(0),ga_tooltip_two])
+                            list_data.append([str(i[14]),int(0),lead_tooltip_two,int(i[7]),ga_tooltip_one])
+                    list_data = sorted(list_data, key=lambda x: datetime.strptime(x[0], '%Y-%m-%d'))                       
             
             except Exception as e:
                 logging.info(str(e))
@@ -411,19 +465,25 @@ def view_reports(request):
                 ga_result = ''
                 graph_result = ''
                 dict_list = ''
+                list_data = ''
+                ga_count = ''
+                lead_count = ''
                 pass
             
-            return render(request, 'reports.html', {'ga_result':ga_result,'graph_result':graph_result,'dict_list':dict_list,'lead_api_settings':lead_api_settings, 'from_date':from_date, 'to_date':to_date, 'page_title':page_title, 'select_filter':select_filter, 'name_val':request.POST['filter_val'].strip(' ')})
+            return render(request, 'reports.html', {'ga_result':ga_result,'graph_result':graph_result,'dict_list':dict_list,'lead_api_settings':lead_api_settings, 'from_date':from_date, 'to_date':to_date, 'page_title':page_title, 'select_filter':select_filter, 'name_val':request.POST['filter_val'].strip(' '),'list_data':list_data,'ga_count':ga_count,'lead_count':lead_count})
         
     ga_response = ''
     from_date_range = date.today() - timedelta(days=30)
     to_date_range = date.today()
     from_date = str(from_date_range.year)+'-'+str(from_date_range.month)+'-'+str(from_date_range.day)
     to_date = str(to_date_range.year)+'-'+str(to_date_range.month)+'-'+str(to_date_range.day)
-    url = 'http://openapi.leadenhancer.com/v1/leadopenapi/visits?token=%s&fromdate=%s&todate=%s&countriesiso=DE'% (lead_api_settings.lead_token,from_date,to_date)
+    url = 'http://openapi.leadenhancer.com/v1/leadopenapi/visits?token=%s&fromdate=%s&todate=%s&limit=10000&countriesiso=DE'% (lead_api_settings.lead_token,from_date,to_date)
     try:
+        urlfetch.set_default_fetch_deadline(45)
         result = urlfetch.fetch(url)
-    except:
+        
+    except Exception as e:
+        logging.info(str(e))
         message = 'API Connection Exceeds'
         return render(request, 'message.html', {'message':message})
     
@@ -455,8 +515,8 @@ def view_reports(request):
         'start-date':from_date,#'2012-03-03',
         'end-date':to_date,#'2013-11-09',
         'metrics':'ga:visits',
-        'dimensions':'ga:pageTitle',#'ga:pagePath',
-        'alt':'json'
+        'dimensions':'ga:pageTitle,ga:date',#'ga:pagePath',
+        'alt':'json',
         }
                 
     encoded_data = urllib.urlencode(data)
@@ -472,7 +532,6 @@ def view_reports(request):
             url_list = []
             for j in ga_result['rows']:
                 url_list.append(j[0])
-                
             update_list = []
             for i in lead_result:
                 update_dict = lead_parse_dict_creation(i)
@@ -482,6 +541,7 @@ def view_reports(request):
                     
             dict_list = []
             graph_result = []
+            graph_result_new = [['Year', 'LeadEnhancer', 'GoogleAnalytics']]
             for update_item in update_list:
                 visitscore = ''
                 ga_visits = ''
@@ -493,20 +553,55 @@ def view_reports(request):
                 if report_details:
                     for g in ga_result['rows']:
                         if g[0] == update_item['page']:
-                            ga_visits = g[1]
+                            ga_visits = g[2]
+                            ga_startdate = g[1]
+                            
                     
                     if report_details[6] and ga_visits:
+                        #logging.info(report_details[12])
+                        #logging.info(ga_startdate)
+                        #lead_startdate = report_details[12].split(' ')[0]
+                        ga_start_date = ga_startdate[:4]+'-'+ga_startdate[4:6]+'-'+ga_startdate[6:]
+                        #logging.info(lead_startdate)
+                        #logging.info(ga_start_date)
                         graph_result.append([int(report_details[6]), int(ga_visits)])
+                        #if ga_start_date == lead_startdate:
+                        graph_result_new.append([str(ga_start_date),int(report_details[6]), int(ga_visits)])
+                        #logging.info(graph_result_new)
                         #Report display in template - google analytics visits in 7th position
                         report_details.insert(7, ga_visits)
+                        report_details.insert(14, ga_start_date)
                         dict_list.append(report_details)
-                    
+                
+            list_data = []
+            lead_count = int(0)
+            ga_count = int(0)
+            for i in dict_list:
+                lead_count = lead_count + int(i[6])
+                ga_count = ga_count + int(i[7])
+                #logging.info('hrtrrrrr')
+                ga_tooltip_one = unicodedata.normalize('NFKD', i[0]).encode('ascii','ignore') +'--'+ str(i[7])
+                lead_tooltip_one = unicodedata.normalize('NFKD', i[0]).encode('ascii','ignore') +'--'+ str(i[6])
+                ga_tooltip_two = unicodedata.normalize('NFKD', i[0]).encode('ascii','ignore') +'--'+ '0'
+                lead_tooltip_two = unicodedata.normalize('NFKD', i[0]).encode('ascii','ignore') +'--'+ '0'
+                if i[13] == i[14]:
+                    list_data.append([str(i[14]),int(i[6]),ga_tooltip_one,int(i[7]),lead_tooltip_one])
+                else:
+                    list_data.append([str(i[13]),int(i[6]),lead_tooltip_one,int(0),ga_tooltip_two])
+                    list_data.append([str(i[14]),int(0),lead_tooltip_two,int(i[7]),ga_tooltip_one])
+            list_data = sorted(list_data, key=lambda x: datetime.strptime(x[0], '%Y-%m-%d'))            
+            #list_data.insert(0,['Year', 'LeadEnhancer', 'GoogleAnalytics'])
+            #logging.info(list_data)
     except Exception as e:
         logging.info(str(e))
         ga_result = ''
         graph_data = ''
         graph_result = ''
         dict_list = ''
+        graph_result_new = ''
+        list_data = ''
+        lead_count = ''
+        ga_count = ''
         pass
         
     try:
@@ -517,7 +612,7 @@ def view_reports(request):
     except:
         pass
     
-    return render(request, 'reports.html', {'response_details':json.loads(result.content),'ga_result':ga_result,'graph_data':graph_data,'graph_result':graph_result,'dict_list':dict_list,'lead_api_settings':lead_api_settings, 'from_date':from_date, 'to_date':to_date})
+    return render(request, 'reports.html', {'response_details':json.loads(result.content),'ga_result':ga_result,'graph_data':graph_data,'graph_result':graph_result,'dict_list':dict_list,'lead_api_settings':lead_api_settings, 'from_date':from_date, 'to_date':to_date,'graph_result_new':graph_result_new,'list_data':list_data,'ga_count':ga_count,'lead_count':lead_count})
     
     
 def customize_reports(request):
@@ -665,12 +760,13 @@ def lead_parse_dict_creation(i):
     try:
         update_dict['no_of_employees'] = i['organisation']['noofemployees']
     except:
-        update_dict['no_of_employees'] = ''     
+        update_dict['no_of_employees'] = ''
+        
         
     for j in i['pageviews']:
         update_dict['url'] = j['url']
         update_dict['page'] = j['page']
-    
+        update_dict['startdate'] = j['start']
     return update_dict
 
 
@@ -690,8 +786,8 @@ def parse_report_details(updated_item):
     region = updated_item['region']
     address = updated_item['address']
     no_of_employees = updated_item['no_of_employees']
-    
+    startdate = updated_item['startdate'].split(' ')[0]
     return [page, url, sic, org_name, org_sales,
             city, visitscore, countryname,
             continent, region,address,
-            no_of_employees]
+            no_of_employees,startdate]

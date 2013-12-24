@@ -18,14 +18,17 @@
       google.setOnLoadCallback(drawChart);
       function drawChart() { 
       var dataTable = new google.visualization.DataTable();
+      dataTable.addColumn('string', 'Year');
       dataTable.addColumn('number', 'LeadEnhancer');
+      dataTable.addColumn({type: 'string', role: 'tooltip'});
       dataTable.addColumn('number', 'GoogleAnalytics');
+      dataTable.addColumn({type: 'string', role: 'tooltip'})
       dataTable.addRows(
-      {{graph_result|safe}}
+      {{list_data|safe}}
       );
 
       var dataView = new google.visualization.DataView(dataTable);
-      dataView.setColumns([{calc: function(data, row) { return ''; }, type:'string'}, 0, 1]);
+      //dataView.setColumns([{calc: function(data, row) { return ''; }, type:'string'}, 0, 1]);
 
       var chart = new google.visualization.LineChart(document.getElementById('chart_div'));
       var options = {
@@ -35,15 +38,33 @@
         pointSize: 5,
         title: 'Chart by Visits',
         vAxis: {title: "Visits Count"},
-        {% if from_date %}
-        hAxis:{title:" from {{from_date}} to {{to_date}} " },  
-        {% else %}
-        hAxis: {title: "For Last 30 Days"},  
-        {% endif %}  
+        focusTarget: 'category',
+         
       };
       chart.draw(dataView, options);
       }
     </script>
+    <!--<script type="text/javascript">
+      google.load("visualization", "1", {packages:["corechart"]});
+      google.setOnLoadCallback(drawChart);
+      function drawChart() {
+        var data = google.visualization.arrayToDataTable(
+          {{list_data|safe}}
+        );
+
+        var options = {
+          title: 'Chart By Visits'
+        };
+
+        var chart = new google.visualization.LineChart(document.getElementById('chart_div'));
+        chart.draw(data, options);
+      }
+    </script>-->
+    
+    
+    
+    
+    
 <script>
 $(function() {
 $( "#from_date" ).datepicker({
@@ -261,7 +282,10 @@ $(document).ready(function(){
                         <div class="graph" id="chart_div" style="width:997px; height:600px; margin: 0 auto;"></div>
                         <div id="shadow3"></div>
                     </div>
-                    
+                    <div class="visit_count">
+                    <span>Total Lead Visits : {{lead_count}}</span><br/>
+                    <span>Total GA Visits : {{ga_count}}</span>
+                    </div>
                     <div class="table_01">
                         <table border="0" class="table table_02" cellspacing="0" >
                             <tr>

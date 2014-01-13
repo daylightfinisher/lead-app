@@ -1,6 +1,10 @@
 jQuery(document).ready(function($) {
 //   alert('kavi') ;
 
+
+
+
+
     $('#creport').click(function() {
         $('.creport,#closebtn').css({
             'display': 'block'
@@ -82,20 +86,21 @@ function onFocus(el) {
 
 
 $(function() {
-    $( ".from" ).datepicker({
-      defaultDate: "+1w",
-      changeMonth: true,
-      numberOfMonths: 1,
-      onClose: function( selectedDate ) {
-        $( "#to" ).datepicker( "option", "minDate", selectedDate );
-      }
+    $(".from,.to").datepicker({
+        defaultDate: "+1w",
+        changeMonth: true,
+        numberOfMonths: 1,
+        onClose: function(selectedDate) {
+            $("#to").datepicker("option", "minDate", selectedDate);
+            $("#from").datepicker("option", "maxDate", selectedDate);
+        }
     });
-    $( ".to" ).datepicker({
-      defaultDate: "+1w",
-      changeMonth: true,
-      numberOfMonths: 1,
-      onClose: function( selectedDate ) {
-        $( "#from" ).datepicker( "option", "maxDate", selectedDate );
-      }
-    });
-  });
+//    $(".to").datepicker({
+//        defaultDate: "+1w",
+//        changeMonth: true,
+//        numberOfMonths: 1,
+//        onClose: function(selectedDate) {
+//            $("#from").datepicker("option", "maxDate", selectedDate);
+//        }
+//    });
+});

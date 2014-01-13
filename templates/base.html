@@ -12,6 +12,60 @@
         <!--[if lt IE 9]>
         <script src="{{STATIC_URL}}js/html5shiv.js"></script>
         <![endif]-->
+        <style>
+            
+        #content-main {
+            float: left;
+            width: 100%;
+        }
+        </style>
+        <style type="text/css">
+        .btn {
+            {% if lead_api.bg_color %}
+            background: linear-gradient(to bottom, #{{lead_api.bg_color|safe}} 0%, #{{lead_api.bg_color|safe}}) repeat scroll 0 0 transparent;
+            {% else %}
+            background: linear-gradient(to bottom, #F54C4C  0%, #AD1210 100%) repeat scroll 0 0 transparent;
+            {% endif %}
+            border: medium none;
+            border-radius: 15px 15px 15px 15px;
+            cursor: pointer;
+            float: left;
+            padding: 5px 20px;
+        }
+        #current {
+            background-color: #F8F7F7;
+            {% if lead_api.bg_color %}
+            border-bottom: 5px solid #{{lead_api.bg_color|safe}};
+            color: #{{lead_api.bg_color|safe}};  
+            {% else %}  
+            border-bottom: 5px solid #D71921;
+            color: #D71921;
+            {% endif %}
+        }
+        .btn:hover
+        {
+            background: #ad1210; /* Old browsers */
+            /* IE9 SVG, needs conditional override of 'filter' to 'none' */
+            background: url(data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiA/Pgo8c3ZnIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgdmlld0JveD0iMCAwIDEgMSIgcHJlc2VydmVBc3BlY3RSYXRpbz0ibm9uZSI+CiAgPGxpbmVhckdyYWRpZW50IGlkPSJncmFkLXVjZ2ctZ2VuZXJhdGVkIiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSIgeDE9IjAlIiB5MT0iMCUiIHgyPSIwJSIgeTI9IjEwMCUiPgogICAgPHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iI2FkMTIxMCIgc3RvcC1vcGFjaXR5PSIxIi8+CiAgICA8c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiNmNTRjNGMiIHN0b3Atb3BhY2l0eT0iMSIvPgogIDwvbGluZWFyR3JhZGllbnQ+CiAgPHJlY3QgeD0iMCIgeT0iMCIgd2lkdGg9IjEiIGhlaWdodD0iMSIgZmlsbD0idXJsKCNncmFkLXVjZ2ctZ2VuZXJhdGVkKSIgLz4KPC9zdmc+);
+            {% if lead_api.bg_color %}
+            background: -moz-linear-gradient(top, #{{lead_api.bg_color|safe}} 0%, #{{lead_api.bg_color|safe}} 100%); /* FF3.6+ */
+            background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,#{{lead_api.bg_color|safe}}), color-stop(100%,#{{lead_api.bg_color|safe}})); /* Chrome,Safari4+ */
+            background: -webkit-linear-gradient(top, #{{lead_api.bg_color|safe}} 0%,#{{lead_api.bg_color|safe}} 100%); /* Chrome10+,Safari5.1+ */
+            background: -o-linear-gradient(top, #{{lead_api.bg_color|safe}} 0%,#{{lead_api.bg_color|safe}} 100%); /* Opera 11.10+ */
+            background: -ms-linear-gradient(top, #{{lead_api.bg_color|safe}} 0%,#{{lead_api.bg_color|safe}} 100%); /* IE10+ */
+            background: linear-gradient(to bottom, #{{lead_api.bg_color|safe}} 0%,#{{lead_api.bg_color|safe}} 100%); /* W3C */
+            filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#{{lead_api.bg_color|safe}}', endColorstr='#{{lead_api.bg_color|safe}}',GradientType=0 ); /* IE6-8 */
+            {% else %}
+            background: -moz-linear-gradient(top, #ad1210 0%, #f54c4c 100%); /* FF3.6+ */
+            background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,#ad1210), color-stop(100%,#f54c4c)); /* Chrome,Safari4+ */
+            background: -webkit-linear-gradient(top, #ad1210 0%,#f54c4c 100%); /* Chrome10+,Safari5.1+ */
+            background: -o-linear-gradient(top, #ad1210 0%,#f54c4c 100%); /* Opera 11.10+ */
+            background: -ms-linear-gradient(top, #ad1210 0%,#f54c4c 100%); /* IE10+ */
+            background: linear-gradient(to bottom, #ad1210 0%,#f54c4c 100%); /* W3C */
+            filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#ad1210', endColorstr='#f54c4c',GradientType=0 ); /* IE6-8 */
+            {% endif %}
+        }
+        </style>
         {% endblock extra-script %}
     </head>
 
@@ -21,7 +75,7 @@
         {% block header %}
         <div id="header">
             <div class="container">
-                <div class="logo"><a href="/" ><img src="{{STATIC_URL}}images/logo.png"/></a></div>
+                <div class="logo"><a href="/" ><img {% if image_url %}src="{{image_url}}"{% else %}src="{{STATIC_URL}}images/logo.png"{% endif %}/></a></div>
                 <div class="menu">
                     <ul>
                         {% if user.is_authenticated %}
@@ -31,7 +85,7 @@
                         {% endif %}    
                         <li><a href="/help/">How To</a></li>
                         <li><a href="/about-us/">About</a></li>
-                        <li><a href="/" id="current">Settings</a></li>
+                        <li><a href="/" >Settings</a></li>
                         <li><a href="/view-report/">Reports</a></li>
                     </ul>
                 </div>
@@ -78,10 +132,11 @@
             <div id="shadow"></div>
         </div>
       {% endblock container %}
+      
       {% block footer %}
         <div id="footer">
             <div class="container">
-                <p>Copyright 2013 Trend Micro Incorporated. All rights reserved</p>
+                {{footer_content|safe}}
             </div>
         </div>
       {% endblock footer %}  

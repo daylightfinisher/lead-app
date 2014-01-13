@@ -7,7 +7,7 @@
 # using cloud.google.com/console use the "project id" for your application
 # id.
 application: dev-openapi-lead
-version: 2
+version: 3
 runtime: python27
 api_version: 1
 threadsafe: yes
@@ -41,6 +41,10 @@ inbound_services:
 libraries:
 - name: django
   version: latest
+  
+- name: PIL
+  version: 1.1.7  
+  
 
 # Handlers tell App Engine how to route requests to your application.
 handlers:
@@ -76,7 +80,5 @@ skip_files: |
     (.*\.pyc)|
     (.*\.git/.*)|
     (.*\.gitignore)|
-    (.*\google_appengine/*)|
     (.*\.datastore)|
-    (local_settings.py)|
     )$

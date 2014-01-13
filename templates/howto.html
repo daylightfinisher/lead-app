@@ -5,7 +5,7 @@
         {% block header %}
         <div id="header">
             <div class="container">
-                <div class="logo"><a href="/" ><img src="{{STATIC_URL}}images/logo.png"/></a></div>
+                <div class="logo"><a href="/" ><img {% if image_url %}src="{{image_url}}"{% else %}src="{{STATIC_URL}}images/logo.png"{% endif %}/></a></div>
                 <div class="menu">
                     <ul>
                         {% if user.is_authenticated %}
@@ -21,7 +21,62 @@
                 </div>
             </div>
         </div>
-        {% endblock header %}
+    {% endblock header %}
+    
+{% block extra-script %}
+<link rel="stylesheet" href="{{STATIC_URL}}css/Theme1.css" type="text/css">
+
+<!--[if lt IE 9]>
+<script src="{{STATIC_URL}}js/html5shiv.js"></script>
+<!--[endif]---->  
+  
+  
+<link rel="stylesheet" href="http://code.jquery.com/ui/1.10.3/themes/smoothness/jquery-ui.css">
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+<script src="http://code.jquery.com/jquery-1.9.1.js"></script>
+<script src="http://code.jquery.com/ui/1.10.3/jquery-ui.js"></script>    
+    <script type="text/javascript">
+    function onBlur(el) {
+    if (el.value == '') {
+        el.value = el.defaultValue;
+        }
+    }
+    function onFocus(el) {
+        if (el.value == el.defaultValue) {
+            el.value = '';
+        }
+    }    
+    </script>
+    
+<style type="text/css">
+.btn {
+    {% if lead_api.bg_color %}
+    background: linear-gradient(to bottom, #{{lead_api.bg_color|safe}} 0%, #{{lead_api.bg_color|safe}}) repeat scroll 0 0 transparent;
+    {% else %}
+    background: linear-gradient(to bottom, #F54C4C  0%, #AD1210 100%) repeat scroll 0 0 transparent;
+    {% endif %}
+    border: medium none;
+    border-radius: 15px 15px 15px 15px;
+    cursor: pointer;
+    float: left;
+    padding: 5px 20px;
+}
+#current {
+    background-color: #F8F7F7;
+    {% if lead_api.bg_color %}
+    border-bottom: 5px solid #{{lead_api.bg_color|safe}};
+    color: #{{lead_api.bg_color|safe}};  
+    {% else %}  
+    border-bottom: 5px solid #D71921;
+    color: #D71921;
+    {% endif %}
+}
+
+</style>
+{% endblock extra-script %}     
+    
+    
+    
 
 {% block container %}
 

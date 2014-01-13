@@ -11,7 +11,11 @@ log = logging.getLogger('configuration.views')
 
 def group_settings(request, group, template='livesettings/group_settings.html'):
     # Determine what set of settings this editor is used for
-    
+    try:
+        message = request.session['message']
+        del request.session['message']
+    except:
+        message = None
     use_db, overrides = get_overrides();
     
     mgr = ConfigurationSettings()
@@ -37,6 +41,7 @@ def group_settings(request, group, template='livesettings/group_settings.html'):
                     group, key = name.split('__')
                     cfg = mgr.get_config(group, key)
                     if cfg.update(value):
+                        request.session['message'] = 'Contents Has Been Updated'
                         pass
                         # Give user feedback as to which settings were changed
                         #request.user.message_set.create(message='Updated %s on %s' % (cfg.key, cfg.group.key))
@@ -53,7 +58,8 @@ def group_settings(request, group, template='livesettings/group_settings.html'):
         'title': title,
         'group' : group,
         'form': form,
-        'use_db' : use_db
+        'use_db' : use_db,
+        'message':message,
     }, context_instance=RequestContext(request))
 group_settings = never_cache(staff_member_required(group_settings))
 

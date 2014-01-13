@@ -1,5 +1,29 @@
 {% extends 'base.html' %}
 {% block title %}<title>Reports Page</title>{% endblock title %}
+
+
+{% block header %}
+        <div id="header">
+            <div class="container">
+                <div class="logo"><a href="/" ><img {% if image_url %}src="{{image_url}}"{% else %}src="{{STATIC_URL}}images/logo.png"{% endif %}/></a></div>
+                <div class="menu">
+                    <ul>
+                        {% if user.is_authenticated %}
+                        <li><a href="/logout/">Logout</a></li>
+                        {% else %}
+                        <li><a href="/login/">Login</a></li>    
+                        {% endif %}    
+                        <li><a href="/help/">How To</a></li>
+                        <li><a href="/about-us/" >About</a></li>
+                        <li><a href="/" >Settings</a></li>
+                        <li><a href="/view-report/" id="current">Reports</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    {% endblock header %}
+
+
 {% block extra-script %}
 <link rel="stylesheet" href="{{STATIC_URL}}css/Theme1.css" type="text/css">
 
@@ -167,30 +191,115 @@ $(document).ready(function(){
      
      
 });    
-</script>     
+</script>
+<script type="text/javascript" src="{{STATIC_URL}}js/myscript.js"></script>
+        <script type="text/javascript">
 
+            $('.btn').corner();
+
+        </script>
+
+<style type="text/css">
+.btn {
+    {% if lead_api.bg_color %}
+    background: linear-gradient(to bottom, #{{lead_api.bg_color|safe}} 0%, #{{lead_api.bg_color|safe}}) repeat scroll 0 0 transparent;
+    {% else %}
+    background: linear-gradient(to bottom, #F54C4C  0%, #AD1210 100%) repeat scroll 0 0 transparent;
+    {% endif %}
+    border: medium none;
+    border-radius: 15px 15px 15px 15px;
+    cursor: pointer;
+    float: left;
+    padding: 5px 20px;
+}
+#current {
+    background-color: #F8F7F7;
+    {% if lead_api.bg_color %}
+    border-bottom: 5px solid #{{lead_api.bg_color|safe}};
+    color: #{{lead_api.bg_color|safe}};  
+    {% else %}  
+    border-bottom: 5px solid #D71921;
+    color: #D71921;
+    {% endif %}
+}
+.btn:hover
+{
+    background: #ad1210; /* Old browsers */
+    /* IE9 SVG, needs conditional override of 'filter' to 'none' */
+    background: url(data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiA/Pgo8c3ZnIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgdmlld0JveD0iMCAwIDEgMSIgcHJlc2VydmVBc3BlY3RSYXRpbz0ibm9uZSI+CiAgPGxpbmVhckdyYWRpZW50IGlkPSJncmFkLXVjZ2ctZ2VuZXJhdGVkIiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSIgeDE9IjAlIiB5MT0iMCUiIHgyPSIwJSIgeTI9IjEwMCUiPgogICAgPHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iI2FkMTIxMCIgc3RvcC1vcGFjaXR5PSIxIi8+CiAgICA8c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiNmNTRjNGMiIHN0b3Atb3BhY2l0eT0iMSIvPgogIDwvbGluZWFyR3JhZGllbnQ+CiAgPHJlY3QgeD0iMCIgeT0iMCIgd2lkdGg9IjEiIGhlaWdodD0iMSIgZmlsbD0idXJsKCNncmFkLXVjZ2ctZ2VuZXJhdGVkKSIgLz4KPC9zdmc+);
+    {% if lead_api.bg_color %}
+    background: -moz-linear-gradient(top, #{{lead_api.bg_color|safe}} 0%, #{{lead_api.bg_color|safe}} 100%); /* FF3.6+ */
+    background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,#{{lead_api.bg_color|safe}}), color-stop(100%,#{{lead_api.bg_color|safe}})); /* Chrome,Safari4+ */
+    background: -webkit-linear-gradient(top, #{{lead_api.bg_color|safe}} 0%,#{{lead_api.bg_color|safe}} 100%); /* Chrome10+,Safari5.1+ */
+    background: -o-linear-gradient(top, #{{lead_api.bg_color|safe}} 0%,#{{lead_api.bg_color|safe}} 100%); /* Opera 11.10+ */
+    background: -ms-linear-gradient(top, #{{lead_api.bg_color|safe}} 0%,#{{lead_api.bg_color|safe}} 100%); /* IE10+ */
+    background: linear-gradient(to bottom, #{{lead_api.bg_color|safe}} 0%,#{{lead_api.bg_color|safe}} 100%); /* W3C */
+    filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#{{lead_api.bg_color|safe}}', endColorstr='#{{lead_api.bg_color|safe}}',GradientType=0 ); /* IE6-8 */
+    {% else %}
+    background: -moz-linear-gradient(top, #ad1210 0%, #f54c4c 100%); /* FF3.6+ */
+    background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,#ad1210), color-stop(100%,#f54c4c)); /* Chrome,Safari4+ */
+    background: -webkit-linear-gradient(top, #ad1210 0%,#f54c4c 100%); /* Chrome10+,Safari5.1+ */
+    background: -o-linear-gradient(top, #ad1210 0%,#f54c4c 100%); /* Opera 11.10+ */
+    background: -ms-linear-gradient(top, #ad1210 0%,#f54c4c 100%); /* IE10+ */
+    background: linear-gradient(to bottom, #ad1210 0%,#f54c4c 100%); /* W3C */
+    filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#ad1210', endColorstr='#f54c4c',GradientType=0 ); /* IE6-8 */
+  {% endif %} 
+}
+.table_02 th {
+    {% if lead_api.bg_color %}
+    background-color: #{{lead_api.bg_color|safe}};
+    border-right: 1px solid grey;
+    {% else %}  
+    background-color: #D71921; 
+    border-right: 1px solid red;
+    {% endif %}
+    padding: 5px 10px;
+}
+.table_01 {
+    {% if lead_api.bg_color %}
+    border: 1px solid grey;  
+    {% else %}  
+    border: 1px solid red;
+    {% endif %}
+    height: 500px;
+    margin: auto;
+    overflow: auto;
+    width: 1000px;
+}
+.table {
+    {% if lead_api.bg_color %}
+    border: 1px solid grey;  
+    {% else %} 
+    border: 1px solid red;
+    {% endif %}
+    border-collapse: collapse;
+    float: left;
+    table-layout: auto;
+    width: 100%;
+}
+table tr td {
+    {% if lead_api.bg_color %}
+    border: 1px solid grey;  
+    {% else %} 
+    border: 1px solid red;
+    {% endif %}
+    padding: 10px 5px;
+}
+a#creport {
+    {% if lead_api.bg_color %}
+    color: #{{lead_api.bg_color|safe}};
+    {% else %}  
+    color: #D71921;
+    {% endif %}
+    font-size: 16px;
+    margin-left: 10px;
+    text-decoration: underline;
+}
+</style>        
+        
+        
 {% endblock extra-script %}
 
-        {% block header %}
-        <div id="header">
-            <div class="container">
-                <div class="logo"><a href="/" ><img src="{{STATIC_URL}}images/logo.png"/></a></div>
-                <div class="menu">
-                    <ul>
-                        {% if user.is_authenticated %}
-                        <li><a href="/logout/">Logout</a></li>
-                        {% else %}
-                        <li><a href="/login/">Login</a></li>    
-                        {% endif %}    
-                        <li><a href="/help/">How To</a></li>
-                        <li><a href="/about-us/">About</a></li>
-                        <li><a href="/">Settings</a></li>
-                        <li><a href="/view-report/" id="current">Reports</a></li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-      {% endblock header %}
       
 {% block container %}
 
@@ -211,23 +320,27 @@ $(document).ready(function(){
                                     <input type="text" id="to_date" class="to" name='to_date' style="width: 120px; margin-left: 35px;" readonly="readonly" placeholder="{{to_date}}" value="{{to_date}}" />
                                 </span>
                             </div>
+                            <!--<div class="textbox">
+                                <label>Enter Page Title or URL</label>
+                                <br/>
+                                    <input type="text" id="datepick" name='page_title' class="page_title" style="width: 300px;" placeholder="{{page_title}}" value="{{page_title}}" />
+                                    <div class="btn" style="margin-left: 20px; float: right;"><input type="submit" class="btn" id="generate" value="Generate" /></div>
+                            </div>-->
                             <div class="textbox">
                                 <label>Enter Page Title or URL</label>
                                 <br/>
-                                <span>
-                                    <input type="text" id="datepick" name='page_title' class="page_title" style="width: 300px;" placeholder="{{page_title}}" value="{{page_title}}" />
-                                    <input type="submit" class="btn" id="generate" value="Generate" style="margin-left: 20px;"/>
-                                </span>
+                                <input type="text" id="datepick" name='page_title' class="page_title" style="width: 300px;" placeholder="{{page_title}}" value="{{page_title}}"/>
+                                <div class="btn" style="margin-left: 20px; float: right;"><input type="submit" class="button" id="generate" value="Generate" /></div>
                             </div>
+                            
+                            
                         </form>
                         <form name="filter_form" id="filter_form" action="/view-report/" method="post">
                             <div class="textbox">
                                 <label>Enter</label>
                                 <br/>
-                                <span>
                                     <input type="text" id="filter_val" name="filter_val" style="width: 300px;" placeholder="{{name_val}}" value="{{name_val}}"/>
-                                    <input type="hidden" name="filters" style="width: 300px;"/>
-                                </span>
+                                    <div style="margin-left: 28px; float: right;"><input type="hidden" name="filters" /></div>
                             </div>
                             <div class="textbox">
                                 <div class="textcover" style="float: left; margin-top: 40px; width: auto;"> 
@@ -239,12 +352,14 @@ $(document).ready(function(){
                                         <option {% if select_filter == 'Location' %}selected=""{% endif %}>Location</option>
                                         <option {% if select_filter == 'No. of Employees' %}selected=""{% endif %}>No. of Employees</option>
                                     </select>                                
-                                    <span>
-                                        <input type="submit" id="filter" class="btn" value="Filter" style="margin-left: 20px;"/><br/>
+                                    
+                                        <div class="btn" style="margin-left: 28px; float: right;"><input type="submit" id="filter" class="button" value="Filter"/></div><br/>
                                         <a style="cursor:pointer" id="creport">Customize your report</a>
-                                    </span>
+                                  
                                 </div>
-                            </div>                            
+                            </div>
+                            
+                            
                         </form>
                     </div>                    
 
@@ -270,8 +385,8 @@ $(document).ready(function(){
                                 <div class="cover"><input type="checkbox" name="continent" value="True" {% ifequal lead_api_settings.continent 1 %} checked {% endifequal %} /> Continent</div>
                                 <div class="cover"><input type="checkbox" name="address" value="True" {% ifequal lead_api_settings.address 1 %} checked {% endifequal %} /> Address</div>
                             </div>
-                            <div class="cover1"><input type="button" id="customize" class="btn" value="Save"/></div>
-                            <div class="cover1"><input type="button" class="btn" value="Clear"/></div>
+                            <div class="cover1"><div class="btn" style="float: left;"><input type="button" id="customize" class="button" value="Save"/></div></div>
+                            <div class="cover1"><div class="btn" style="float: left;"><input type="button" class="button" value="Clear"/></div></div>
                         </form>
                     </div>
 

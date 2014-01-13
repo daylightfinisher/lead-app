@@ -15,6 +15,8 @@ import urllib2
 import unicodedata
 
 from google.appengine.api import urlfetch
+from google.appengine.api import images
+from google.appengine.ext import db
 from lead_app.models import Api_Settings,LeadApi_Settings
 from livesettings import config_value
 
@@ -31,11 +33,17 @@ def home(request):
     Lead enhancer settings. Using to configure google analytics id and
     Openapi Lead enhancer.
     '''
+    try:
+        logo_saved = request.session['logo_saved']
+        del(request.session['logo_saved'])
+    except:
+        logo_saved = ''
+        pass
     user = request.user
     usr_obj = User.objects.get(username=user)
     #initialize the info message
     info_msg = ''
-    
+    footer_content = config_value('leadappsettings','copy_rights')
     try:
         ga_api = Api_Settings.objects.get(user=request.user)
     except:
@@ -43,9 +51,19 @@ def home(request):
         pass
     try:
         lead_api = LeadApi_Settings.objects.get(user=request.user)
-    except:
+    except Exception as e:
+        logging.info(str(e))
         lead_api = None
-        pass
+       
+    try:
+        lead_api = LeadApi_Settings.objects.get(user=request.user)
+        get_blob_key = str(lead_api.icon_image).split('/')
+        image_url = images.get_serving_url(get_blob_key[0])
+        logging.info(get_blob_key[1])
+        logging.info(image_url)
+    except Exception as e:
+        logging.info(str(e))
+        image_url = ''
     
     if request.method == 'POST':
         if 'profile_id' in request.POST:
@@ -85,8 +103,26 @@ def home(request):
                     lead_api = None
                     pass
                 
-                return render(request, 'configure.html', {'ga_api':ga_api,'lead_api':lead_api, 'msg':'Your Lead token has been configured'})
+                return render(request, 'configure.html', {'ga_api':ga_api,
+                                                          'lead_api':lead_api,
+                                                          'msg':'Your Lead token has been configured',
+                                                          'image_url':image_url,
+                                                          'footer_content':footer_content,
+                                                          'logo_saved':logo_saved})
             
+            except Exception as e:
+                logging.info(str(e))
+                pass
+            
+        if 'image_color' in request.POST:
+            try:
+                lead_settings_image = LeadApi_Settings.objects.get(user=usr_obj)
+                if 'image_upload' in request.FILES:
+                    lead_settings_image.icon_image = request.FILES['image_upload']
+                lead_settings_image.bg_color = request.POST['image_color']
+                lead_settings_image.save()
+                request.session['logo_saved'] = 'Your Settings Has Been Saved'
+                return HttpResponseRedirect('/')
             except Exception as e:
                 logging.info(str(e))
                 pass
@@ -94,7 +130,7 @@ def home(request):
     if ga_api == None or lead_api == None:
         info_msg = 'Please configure both Google Analyics and Leadenhancer Apis to view the report'
         
-    return render(request, 'configure.html', {'ga_api':ga_api,'lead_api':lead_api, 'info_msg':info_msg})
+    return render(request, 'configure.html', {'ga_api':ga_api,'lead_api':lead_api, 'info_msg':info_msg,'image_url':image_url,'footer_content':footer_content,'logo_saved':logo_saved})
 
 
 def oauth2callback(request):
@@ -165,6 +201,16 @@ def login(request):
     '''
     Login page for Lead Enhancer
     '''
+    footer_content = config_value('leadappsettings','copy_rights')
+    try:
+        lead_api = LeadApi_Settings.objects.get(user=request.user)
+        logging.info(lead_api.icon_image)
+        get_blob_key = str(lead_api.icon_image).split('/')
+        image_url = images.get_serving_url(get_blob_key[0])
+    except Exception as e:
+        logging.info(str(e))
+        lead_api = None
+        image_url = ''
     if request.method == 'POST':
         username = request.POST['username']
         password = request.POST['password']
@@ -177,8 +223,8 @@ def login(request):
             else:
                 return render(request, 'login.html', {'msg':'User is not active'})
         else:
-            return render(request, 'login.html', {'msg':'Your username and password didnt match. Please try again.'})
-    return render(request, 'login.html', {})
+            return render(request, 'login.html', {'msg':'Your username and password didnt match. Please try again.','footer_content':footer_content,'lead_api':lead_api,'image_url':image_url})
+    return render(request, 'login.html', {'footer_content':footer_content,'lead_api':lead_api,'image_url':image_url})
 
 
 def logout(request):
@@ -192,6 +238,7 @@ def view_reports(request):
     '''
     Reports display the Google analytics and Lead Enhancer.
     '''
+    footer_content = config_value('leadappsettings','copy_rights')
     user = request.user
     try:
         api_settings = Api_Settings.objects.get(user=user)
@@ -199,14 +246,44 @@ def view_reports(request):
     except:
         return HttpResponseRedirect('/')
     
+    
+    try:
+        lead_api = LeadApi_Settings.objects.get(user=user)
+        get_blob_key = str(lead_api.icon_image).split('/')
+        image_url = images.get_serving_url(get_blob_key[0])
+    except:
+        lead_api = ''
+        image_url = ''
+        pass
+        
+        
+    
     if api_settings.ga_profile_id == None or lead_api_settings.lead_token == None :
         return HttpResponseRedirect('/')
     
     try:
         from_date_range = date.today() - timedelta(days=30)
         to_date_range = date.today()
-        from_date = str(from_date_range.year)+'-'+str(from_date_range.month)+'-'+str(from_date_range.day)
-        to_date = str(to_date_range.year)+'-'+str(to_date_range.month)+'-'+str(to_date_range.day)
+        
+        if len(str(from_date_range.day)) == 1 and len(str(from_date_range.month)) == 1 :
+        #str(0)+str(date.today().day)
+            from_date = str(from_date_range.year)+'-'+str(0)+str(from_date_range.month)+'-'+str(0)+str(from_date_range.day)
+        elif len(str(from_date_range.day)) == 1:
+            from_date = str(from_date_range.year)+'-'+str(from_date_range.month)+'-'+str(0)+str(from_date_range.day)
+        elif len(str(from_date_range.month)) == 1:
+            from_date = str(from_date_range.year)+'-'+str(0)+str(from_date_range.month)+'-'+str(from_date_range.day)
+        else:
+            from_date = str(from_date_range.year)+'-'+str(from_date_range.month)+'-'+str(from_date_range.day)
+        
+        if len(str(to_date_range.day)) == 1 and len(str(to_date_range.month)) == 1 :
+            #str(0)+str(date.today().day)
+            to_date = str(to_date_range.year)+'-'+str(0)+str(to_date_range.month)+'-'+str(0)+str(to_date_range.day)
+        elif len(str(to_date_range.day)) == 1:
+            to_date = str(to_date_range.year)+'-'+str(to_date_range.month)+'-'+str(0)+str(to_date_range.day)
+        elif len(str(to_date_range.month)) == 1:
+            to_date = str(to_date_range.year)+'-'+str(0)+str(to_date_range.month)+'-'+str(to_date_range.day)
+        else:
+            to_date = str(to_date_range.year)+'-'+str(to_date_range.month)+'-'+str(to_date_range.day)
     except Exception as e:
         logging.info(str(e))
         pass
@@ -218,8 +295,24 @@ def view_reports(request):
             if from_date == '' and to_date == '':
                 from_date_range = date.today() - timedelta(days=30)
                 to_date_range = date.today()
-                from_date = str(from_date_range.year)+'-'+str(from_date_range.month)+'-'+str(from_date_range.day)
-                to_date = str(to_date_range.year)+'-'+str(to_date_range.month)+'-'+str(to_date_range.day)
+                if len(str(from_date_range.day)) == 1 and len(str(from_date_range.month)) == 1 :
+                    from_date = str(from_date_range.year)+'-'+str(0)+str(from_date_range.month)+'-'+str(0)+str(from_date_range.day)
+                elif len(str(from_date_range.day)) == 1:
+                    from_date = str(from_date_range.year)+'-'+str(from_date_range.month)+'-'+str(0)+str(from_date_range.day)
+                elif len(str(from_date_range.month)) == 1:
+                    from_date = str(from_date_range.year)+'-'+str(0)+str(from_date_range.month)+'-'+str(from_date_range.day)
+                else:
+                    from_date = str(from_date_range.year)+'-'+str(from_date_range.month)+'-'+str(from_date_range.day)
+                
+                if len(str(to_date_range.day)) == 1 and len(str(to_date_range.month)) == 1 :
+                    #str(0)+str(date.today().day)
+                    to_date = str(to_date_range.year)+'-'+str(0)+str(to_date_range.month)+'-'+str(0)+str(to_date_range.day)
+                elif len(str(to_date_range.day)) == 1:
+                    to_date = str(to_date_range.year)+'-'+str(to_date_range.month)+'-'+str(0)+str(to_date_range.day)
+                elif len(str(to_date_range.month)) == 1:
+                    to_date = str(to_date_range.year)+'-'+str(0)+str(to_date_range.month)+'-'+str(to_date_range.day)
+                else:
+                    to_date = str(to_date_range.year)+'-'+str(to_date_range.month)+'-'+str(to_date_range.day)
             page_title = request.POST['page_title']
             
             try:
@@ -281,7 +374,7 @@ def view_reports(request):
                     ga_result = json.loads(api_response.content)
                     url_list = []
                     for j in ga_result['rows']:
-                        url_list.append(j[0])
+                        url_list.append([j[0].encode('ascii','ignore'),j[1],j[2]])
                     
                     update_list = []
                     for i in generate_lead_result:
@@ -300,29 +393,37 @@ def view_reports(request):
                         for url_item in url_list:                     
    			    #Check page title is url or page title
                             if len(page_list) > 1:
-                                if updated_item['page'] == url_item and updated_item['url'] == page_title:
+                                if updated_item['page'].encode('ascii','ignore') == url_item[0] and updated_item['url'] == page_title:
+                                    ga_visits = url_item[2]
+                                    ga_startdate = url_item[1]
                                     report_details = parse_report_details(updated_item)
                             
                             elif page_title and len(page_list) == 1:
-                                if updated_item['page'] == url_item and updated_item['page'] == page_title:
+                                if updated_item['page'].encode('ascii','ignore') == url_item[0] and updated_item['page'].encode('ascii','ignore') == page_title:
+                                    ga_visits = url_item[2]
+                                    ga_startdate = url_item[1]
                                     report_details = parse_report_details(updated_item)
                             else:
-                                if updated_item['page'] == url_item:
+                                if updated_item['page'].encode('ascii','ignore') == url_item[0]:
+                                    ga_visits = url_item[2]
+                                    ga_startdate = url_item[1]
                                     report_details = parse_report_details(updated_item)
-                        
+                                
+                                
+                        #logging.info(report_details)
                         if report_details:
-                            for ga_visit_count in ga_result['rows']:
-                                if ga_visit_count[0] == updated_item['page']:
-                                    ga_visits = ga_visit_count[2]
-                                    ga_startdate = ga_visit_count[1]
-                                    
-                            if report_details[6] and ga_visits:
-                                ga_start_date = ga_startdate[:4]+'-'+ga_startdate[4:6]+'-'+ga_startdate[6:]
-                                graph_result.append([int(report_details[6]), int(ga_visits)])
-                                #Report display in template - google analytics visits in 7th position
-                                report_details.insert(7, ga_visits)
-                                report_details.insert(14, ga_start_date)
-                                dict_list.append(report_details)
+                            #for ga_visit_count in ga_result['rows']:
+                            #    if ga_visit_count[0] == updated_item['page']:
+                            #        ga_visits = ga_visit_count[2]
+                            #        ga_startdate = ga_visit_count[1]
+                            #        
+                            #if report_details[6] and ga_visits:
+                            ga_start_date = ga_startdate[:4]+'-'+ga_startdate[4:6]+'-'+ga_startdate[6:]
+                            graph_result.append([int(report_details[6]), int(ga_visits)])
+                            #Report display in template - google analytics visits in 7th position
+                            report_details.insert(7, ga_visits)
+                            report_details.insert(14, ga_start_date)
+                            dict_list.append(report_details)
                     
                     list_data = []
                     lead_count = int(0)
@@ -351,7 +452,19 @@ def view_reports(request):
                 lead_count = ''
                 ga_count = ''
                 pass
-            return render(request, 'reports.html', {'ga_result':ga_result,'graph_result':graph_result,'dict_list':dict_list,'from_date':from_date,'to_date':to_date,'lead_api_settings':lead_api_settings, 'page_title':page_title,'list_data':list_data,'lead_count':lead_count,'ga_count':ga_count})
+            return render(request, 'reports.html', {'ga_result':ga_result,
+                                                    'graph_result':graph_result,
+                                                    'dict_list':dict_list,
+                                                    'from_date':from_date,
+                                                    'to_date':to_date,
+                                                    'lead_api_settings':lead_api_settings,
+                                                    'page_title':page_title,
+                                                    'list_data':list_data,
+                                                    'lead_count':lead_count,
+                                                    'ga_count':ga_count,
+                                                    'lead_api':lead_api,
+                                                    'image_url':image_url,
+                                                    'footer_content':footer_content,})
         
         elif 'filters' in request.POST:
             #Get the session values and pass the data to template
@@ -402,7 +515,7 @@ def view_reports(request):
                     
                     url_list = []
                     for j in ga_result['rows']:
-                        url_list.append(j[0])
+                        url_list.append([j[0].encode('ascii','ignore'),j[1],j[2]])
                     
                     ### Parsing the lead list using filter values ###
                     update_list = lead_list_parsing(lead_result, select_filter, request.POST['filter_val'].strip(' '))
@@ -418,29 +531,35 @@ def view_reports(request):
                         for ga_url in url_list:                         
    			    #Check page title is url or page title
                             if len(page_list) > 1:
-                                if new_item['page'] == ga_url and new_item['url'] == page_title:
+                                if new_item['page'].encode('ascii','ignore') == ga_url[0] and new_item['url'] == page_title:
+                                    ga_visits = ga_url[2]
+                                    ga_startdate = ga_url[1]
                                     report_details = parse_report_details(new_item)
                             
                             elif page_title and len(page_list) == 1:
-                                if new_item['page'] == ga_url and new_item['page'] == page_title:
+                                if new_item['page'].encode('ascii','ignore') == ga_url[0] and new_item['page'].encode('ascii','ignore') == page_title:
+                                    ga_visits = ga_url[2]
+                                    ga_startdate = ga_url[1]
                                     report_details = parse_report_details(new_item)
                             else:
-                                if new_item['page'] == ga_url:
+                                if new_item['page'].encode('ascii','ignore') == ga_url[0]:
+                                    ga_visits = ga_url[2]
+                                    ga_startdate = ga_url[1]
                                     report_details = parse_report_details(new_item)
                         
                         if report_details:
-                            for ga_res in ga_result['rows']:
-                                if ga_res[0] == new_item['page']:
-                                    ga_visits = ga_res[2]
-                                    ga_startdate = ga_res[1]
-                            
-                            if report_details[6] and ga_visits:
-                                ga_start_date = ga_startdate[:4]+'-'+ga_startdate[4:6]+'-'+ga_startdate[6:]
-                                graph_result.append([int(report_details[6]), int(ga_visits)])
-                                #Report display in template - google analytics visits in 7th position
-                                report_details.insert(7, ga_visits)
-                                report_details.insert(14, ga_start_date)
-                                dict_list.append(report_details)
+                            #for ga_res in ga_result['rows']:
+                            #    if ga_res[0] == new_item['page']:
+                            #        ga_visits = ga_res[2]
+                            #        ga_startdate = ga_res[1]
+                            #
+                            #if report_details[6] and ga_visits:
+                            ga_start_date = ga_startdate[:4]+'-'+ga_startdate[4:6]+'-'+ga_startdate[6:]
+                            graph_result.append([int(report_details[6]), int(ga_visits)])
+                            #Report display in template - google analytics visits in 7th position
+                            report_details.insert(7, ga_visits)
+                            report_details.insert(14, ga_start_date)
+                            dict_list.append(report_details)
                     
                     list_data = []
                     lead_count = int(0)
@@ -470,13 +589,50 @@ def view_reports(request):
                 lead_count = ''
                 pass
             
-            return render(request, 'reports.html', {'ga_result':ga_result,'graph_result':graph_result,'dict_list':dict_list,'lead_api_settings':lead_api_settings, 'from_date':from_date, 'to_date':to_date, 'page_title':page_title, 'select_filter':select_filter, 'name_val':request.POST['filter_val'].strip(' '),'list_data':list_data,'ga_count':ga_count,'lead_count':lead_count})
+            return render(request, 'reports.html', {'ga_result':ga_result,
+                                                    'graph_result':graph_result,
+                                                    'dict_list':dict_list,
+                                                    'lead_api_settings':lead_api_settings,
+                                                    'from_date':from_date,
+                                                    'to_date':to_date,
+                                                    'page_title':page_title,
+                                                    'select_filter':select_filter,
+                                                    'name_val':request.POST['filter_val'].strip(' '),
+                                                    'list_data':list_data,
+                                                    'ga_count':ga_count,
+                                                    'lead_count':lead_count,
+                                                    'lead_api':lead_api,
+                                                    'image_url':image_url,
+                                                    'footer_content':footer_content,})
         
     ga_response = ''
     from_date_range = date.today() - timedelta(days=30)
     to_date_range = date.today()
-    from_date = str(from_date_range.year)+'-'+str(from_date_range.month)+'-'+str(from_date_range.day)
-    to_date = str(to_date_range.year)+'-'+str(to_date_range.month)+'-'+str(to_date_range.day)
+    
+    if len(str(from_date_range.day)) == 1 and len(str(from_date_range.month)) == 1 :
+        #str(0)+str(date.today().day)
+        from_date = str(from_date_range.year)+'-'+str(0)+str(from_date_range.month)+'-'+str(0)+str(from_date_range.day)
+    elif len(str(from_date_range.day)) == 1:
+        from_date = str(from_date_range.year)+'-'+str(from_date_range.month)+'-'+str(0)+str(from_date_range.day)
+    elif len(str(from_date_range.month)) == 1:
+        from_date = str(from_date_range.year)+'-'+str(0)+str(from_date_range.month)+'-'+str(from_date_range.day)
+    else:
+        from_date = str(from_date_range.year)+'-'+str(from_date_range.month)+'-'+str(from_date_range.day)
+    
+    if len(str(to_date_range.day)) == 1 and len(str(to_date_range.month)) == 1 :
+        #str(0)+str(date.today().day)
+        to_date = str(to_date_range.year)+'-'+str(0)+str(to_date_range.month)+'-'+str(0)+str(to_date_range.day)
+    elif len(str(to_date_range.day)) == 1:
+        to_date = str(to_date_range.year)+'-'+str(to_date_range.month)+'-'+str(0)+str(to_date_range.day)
+    elif len(str(to_date_range.month)) == 1:
+        to_date = str(to_date_range.year)+'-'+str(0)+str(to_date_range.month)+'-'+str(to_date_range.day)
+    else:
+        to_date = str(to_date_range.year)+'-'+str(to_date_range.month)+'-'+str(to_date_range.day)
+    
+    
+    
+    logging.info(from_date)
+    #to_date = str(to_date_range.year)+'-'+str(to_date_range.month)+'-'+str(to_date_range.day)
     url = 'http://openapi.leadenhancer.com/v1/leadopenapi/visits?token=%s&fromdate=%s&todate=%s&limit=10000&countriesiso=DE'% (lead_api_settings.lead_token,from_date,to_date)
     try:
         urlfetch.set_default_fetch_deadline(45)
@@ -531,7 +687,8 @@ def view_reports(request):
             graph_data = zip([lead_result],[ga_result])
             url_list = []
             for j in ga_result['rows']:
-                url_list.append(j[0])
+                url_list.append([j[0].encode('ascii','ignore'),j[1],j[2]])
+            #logging.info(url_list)    
             update_list = []
             for i in lead_result:
                 update_dict = lead_parse_dict_creation(i)
@@ -542,41 +699,69 @@ def view_reports(request):
             dict_list = []
             graph_result = []
             graph_result_new = [['Year', 'LeadEnhancer', 'GoogleAnalytics']]
+            check_url = []
             for update_item in update_list:
                 visitscore = ''
                 ga_visits = ''
                 report_details = []
                 for url_name in url_list:
-                    if update_item['page'] == url_name:
+                    #logging.info(update_item['page'])
+                    #if update_item['page'].startswith("Anwend"):
+                    #    logging.info("gooooooooooooo")
+                    #    logging.info(update_item['page'])
+                    #if url_name.endswith("Deep Security"):
+                    #    logging.info('lllllllll')
+                   # try:
+                    #logging.info(type(update_item['page']))
+                    #dec = update_item['page'].decode('ascii','ignore')
+                    #eec = dec.encode('ascii','ignore')
+                    if str(update_item['page'].encode('ascii','ignore')) == str(url_name[0]):
+                        check_url.append(url_name[0])
+                        if url_name[0] == 'Download Form DE':
+                            logging.info('downnnnnnnnnnn')
+                        #logging.info(update_item['page'].encode('ascii','ignore'))    
+                        #logging.info(update_item['page'])
+                        #logging.info(url_name)
+                        ga_visits = url_name[2]
+                        ga_startdate = url_name[1]
                         report_details = parse_report_details(update_item)
-                
-                if report_details:
-                    for g in ga_result['rows']:
-                        if g[0] == update_item['page']:
-                            ga_visits = g[2]
-                            ga_startdate = g[1]
-                            
+                       
                     
-                    if report_details[6] and ga_visits:
+                if report_details:
+                    
+                #    myjjdjd =[]
+                #    for g in ga_result['rows']:
+                #        #unicodedata.normalize('NFKD', g[0]).encode('ascii','ignore')
+                #        #unicodedata.normalize('NFKD', update_item['page']).encode('ascii','ignore')
+                #        sssss = "%s-----%s"%(g[0].encode('ascii','ignore'),update_item['page'].encode('ascii','ignore'))
+                #        myjjdjd.append(sssss)
+                #        if g[0].encode('ascii','ignore') == update_item['page'].encode('ascii','ignore'):
+                #            ga_visits = g[2]
+                #            ga_startdate = g[1]
+                            
+                    #if report_details[6] and ga_visits:
                         #logging.info(report_details[12])
                         #logging.info(ga_startdate)
                         #lead_startdate = report_details[12].split(' ')[0]
-                        ga_start_date = ga_startdate[:4]+'-'+ga_startdate[4:6]+'-'+ga_startdate[6:]
-                        #logging.info(lead_startdate)
-                        #logging.info(ga_start_date)
-                        graph_result.append([int(report_details[6]), int(ga_visits)])
-                        #if ga_start_date == lead_startdate:
-                        graph_result_new.append([str(ga_start_date),int(report_details[6]), int(ga_visits)])
-                        #logging.info(graph_result_new)
-                        #Report display in template - google analytics visits in 7th position
-                        report_details.insert(7, ga_visits)
-                        report_details.insert(14, ga_start_date)
-                        dict_list.append(report_details)
-                
+                    ga_start_date = ga_startdate[:4]+'-'+ga_startdate[4:6]+'-'+ga_startdate[6:]
+                    #logging.info(lead_startdate)
+                    #logging.info(ga_start_date)
+                    graph_result.append([int(report_details[6]), int(ga_visits)])
+                    #if ga_start_date == lead_startdate:
+                    graph_result_new.append([str(ga_start_date),int(report_details[6]), int(ga_visits)])
+                    #logging.info(graph_result_new)
+                    #Report display in template - google analytics visits in 7th position
+                    #logging.info(report_details)
+                    report_details.insert(7, ga_visits)
+                    report_details.insert(14, ga_start_date)
+                    dict_list.append(report_details)
+            logging.info(set(check_url))            
+            dict_list_1 = dict_list
+            #logging.info(dict_list)
             list_data = []
             lead_count = int(0)
             ga_count = int(0)
-            for i in dict_list:
+            for i in dict_list_1:
                 lead_count = lead_count + int(i[6])
                 ga_count = ga_count + int(i[7])
                 #logging.info('hrtrrrrr')
@@ -612,7 +797,21 @@ def view_reports(request):
     except:
         pass
     
-    return render(request, 'reports.html', {'response_details':json.loads(result.content),'ga_result':ga_result,'graph_data':graph_data,'graph_result':graph_result,'dict_list':dict_list,'lead_api_settings':lead_api_settings, 'from_date':from_date, 'to_date':to_date,'graph_result_new':graph_result_new,'list_data':list_data,'ga_count':ga_count,'lead_count':lead_count})
+    return render(request, 'reports.html', {'response_details':json.loads(result.content),
+                                            'ga_result':ga_result,
+                                            'graph_data':graph_data,
+                                            'graph_result':graph_result,
+                                            'dict_list':dict_list,
+                                            'lead_api_settings':lead_api_settings,
+                                            'from_date':from_date,
+                                            'to_date':to_date,
+                                            'graph_result_new':graph_result_new,
+                                            'list_data':list_data,
+                                            'ga_count':ga_count,
+                                            'lead_count':lead_count,
+                                            'lead_api':lead_api,
+                                            'image_url':image_url,
+                                            'footer_content':footer_content,})
     
     
 def customize_reports(request):
@@ -666,13 +865,39 @@ def customize_reports(request):
 
 
 def about_us(request):
+    try:
+        lead_api = LeadApi_Settings.objects.get(user=request.user)
+        logging.info(lead_api.icon_image)
+        get_blob_key = str(lead_api.icon_image).split('/')
+        image_url = images.get_serving_url(get_blob_key[0])
+    except Exception as e:
+        logging.info(str(e))
+        lead_api = None
+        image_url = ''
     about_us = config_value('leadappsettings','about_us')
-    return render(request, 'aboutus.html', {'about_us':about_us})
+    footer_content = config_value('leadappsettings','copy_rights')
+    return render(request, 'aboutus.html', {'about_us':about_us,
+                                            'lead_api':lead_api,
+                                            'image_url':image_url,
+                                            'footer_content':footer_content,})
 
 
 def help(request):
+    try:
+        lead_api = LeadApi_Settings.objects.get(user=request.user)
+        logging.info(lead_api.icon_image)
+        get_blob_key = str(lead_api.icon_image).split('/')
+        image_url = images.get_serving_url(get_blob_key[0])
+    except Exception as e:
+        logging.info(str(e))
+        lead_api = None
+        image_url = ''
     how_to = config_value('leadappsettings','how_to')
-    return render(request, 'howto.html', {'how_to':how_to})
+    footer_content = config_value('leadappsettings','copy_rights')
+    return render(request, 'howto.html', {'how_to':how_to,
+                                          'lead_api':lead_api,
+                                          'image_url':image_url,
+                                          'footer_content':footer_content,})
 
 
 def lead_list_parsing(lead_result, select_filter, value):
@@ -767,7 +992,7 @@ def lead_parse_dict_creation(i):
         update_dict['url'] = j['url']
         update_dict['page'] = j['page']
         update_dict['startdate'] = j['start']
-    return update_dict
+        return update_dict
 
 
 def parse_report_details(updated_item):
@@ -791,3 +1016,4 @@ def parse_report_details(updated_item):
             city, visitscore, countryname,
             continent, region,address,
             no_of_employees,startdate]
+

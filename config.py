@@ -63,3 +63,13 @@ config_register(LongStringValue(
 
 
 
+#How It Works
+config_register(LongStringValue(
+    LEAD_GROUP,
+    'copy_rights',
+    description = _('copyrights :'),
+    default = """ <p>Copyright 2013 Trend Micro Incorporated. All rights reserved</p>
+    """,
+    ordering= 2))
+
+

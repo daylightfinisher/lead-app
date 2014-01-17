@@ -17,6 +17,7 @@ def custom_icon(request):
         image_url = images.get_serving_url(get_blob_key[0])
     except:
         image_url = ''
+        lead_api = ''
             
 
     return {'image_url': image_url,'footer_content':footer_content,'lead_api':lead_api}

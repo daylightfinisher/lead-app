@@ -330,14 +330,14 @@ def view_reports(request):
             if len(page_list) == 1:
                 page_list = page_title.split('http://')
             
-            generate_url = 'http://openapi.leadenhancer.com/v1/leadopenapi/visits?token=%s&fromdate=%s&todate=%s&countriesiso=DE'% (lead_api_settings.lead_token,str(from_date),str(to_date))
+            generate_url = 'http://openapi.leadenhancer.com/v1/leadopenapi/visits?token=%s&fromdate=%s&todate=%s&limit=1000'% (lead_api_settings.lead_token,str(from_date),str(to_date))
             
             lead_data = {
             'token':lead_api_settings.lead_token,#67560806,77873725
             'fromdate':str(from_date),#'2012-03-03',
             'todate':str(to_date),#'2013-11-09',
-            'countriesiso':'DE',
-            'limit':10000,
+            #'countriesiso':'DE',
+            'limit':1000,
             }
                 
             #lead_encoded_data = urllib.urlencode(lead_data)
@@ -345,7 +345,7 @@ def view_reports(request):
             #lead_api_response = urllib2.urlopen(lead_gen_result)
             #generate_lead_result = json.loads(lead_api_response.read())
             
-            url = 'http://openapi.leadenhancer.com/v1/leadopenapi/visits?token=%s&fromdate=%s&todate=%s&limit=10000&countriesiso=DE'% (lead_api_settings.lead_token,from_date,to_date)
+            url = 'http://openapi.leadenhancer.com/v1/leadopenapi/visits?token=%s&fromdate=%s&todate=%s&limit=1000'% (lead_api_settings.lead_token,from_date,to_date)
             
             urlfetch.set_default_fetch_deadline(45)
             result = urlfetch.fetch(url)
@@ -479,7 +479,7 @@ def view_reports(request):
             
             select_filter = request.POST['select_filter']
             
-            url = 'http://openapi.leadenhancer.com/v1/leadopenapi/visits?token=%s&fromdate=%s&todate=%s&limit=10000&countriesiso=DE'% (lead_api_settings.lead_token,from_date,to_date)
+            url = 'http://openapi.leadenhancer.com/v1/leadopenapi/visits?token=%s&fromdate=%s&todate=%s&limit=1000'% (lead_api_settings.lead_token,from_date,to_date)
 
             #Using Page title and generate the report while filtering
             if page_title:
@@ -633,7 +633,7 @@ def view_reports(request):
     
     logging.info(from_date)
     #to_date = str(to_date_range.year)+'-'+str(to_date_range.month)+'-'+str(to_date_range.day)
-    url = 'http://openapi.leadenhancer.com/v1/leadopenapi/visits?token=%s&fromdate=%s&todate=%s&limit=10000&countriesiso=DE'% (lead_api_settings.lead_token,from_date,to_date)
+    url = 'http://openapi.leadenhancer.com/v1/leadopenapi/visits?token=%s&fromdate=%s&todate=%s&limit=2000'% (lead_api_settings.lead_token,from_date,to_date)
     try:
         urlfetch.set_default_fetch_deadline(45)
         result = urlfetch.fetch(url)

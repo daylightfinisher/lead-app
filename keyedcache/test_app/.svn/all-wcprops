@@ -1,0 +1,29 @@
+K 25
+svn:wc:ra_dav:version-url
+V 48
+/repos/mavenbill/!svn/ver/11/keyedcache/test_app
+END
+manage.py
+K 25
+svn:wc:ra_dav:version-url
+V 58
+/repos/mavenbill/!svn/ver/11/keyedcache/test_app/manage.py
+END
+__init__.py
+K 25
+svn:wc:ra_dav:version-url
+V 60
+/repos/mavenbill/!svn/ver/11/keyedcache/test_app/__init__.py
+END
+settings.py
+K 25
+svn:wc:ra_dav:version-url
+V 60
+/repos/mavenbill/!svn/ver/11/keyedcache/test_app/settings.py
+END
+urls.py
+K 25
+svn:wc:ra_dav:version-url
+V 56
+/repos/mavenbill/!svn/ver/11/keyedcache/test_app/urls.py
+END

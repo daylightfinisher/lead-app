@@ -1,0 +1,47 @@
+K 25
+svn:wc:ra_dav:version-url
+V 39
+/repos/mavenbill/!svn/ver/11/keyedcache
+END
+views.py
+K 25
+svn:wc:ra_dav:version-url
+V 48
+/repos/mavenbill/!svn/ver/11/keyedcache/views.py
+END
+__init__.py
+K 25
+svn:wc:ra_dav:version-url
+V 51
+/repos/mavenbill/!svn/ver/11/keyedcache/__init__.py
+END
+threaded.py
+K 25
+svn:wc:ra_dav:version-url
+V 51
+/repos/mavenbill/!svn/ver/11/keyedcache/threaded.py
+END
+utils.py
+K 25
+svn:wc:ra_dav:version-url
+V 48
+/repos/mavenbill/!svn/ver/11/keyedcache/utils.py
+END
+tests.py
+K 25
+svn:wc:ra_dav:version-url
+V 48
+/repos/mavenbill/!svn/ver/11/keyedcache/tests.py
+END
+models.py
+K 25
+svn:wc:ra_dav:version-url
+V 49
+/repos/mavenbill/!svn/ver/11/keyedcache/models.py
+END
+urls.py
+K 25
+svn:wc:ra_dav:version-url
+V 47
+/repos/mavenbill/!svn/ver/11/keyedcache/urls.py
+END

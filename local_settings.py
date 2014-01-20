@@ -1,4 +1,4 @@
-ALLOWED_HOSTS = ['192.168.1.127']
+ALLOWED_HOSTS = ['localhost']
 #ALLOWED_HOSTS = ['dev-openapi-lead.appspot.com']
 
 SITE_ID = 1

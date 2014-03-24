@@ -429,6 +429,7 @@ def view_reports(request):
                     lead_count = int(0)
                     ga_count = int(0)
                     for i in dict_list:
+                        logging.info(i)
                         lead_count = lead_count + int(i[6])
                         ga_count = ga_count + int(i[7])
                         ga_tooltip_one = unicodedata.normalize('NFKD', i[0]).encode('ascii','ignore') +'--'+ str(i[7])
@@ -440,7 +441,8 @@ def view_reports(request):
                         else:
                             list_data.append([str(i[13]),int(i[6]),lead_tooltip_one,int(0),ga_tooltip_two])
                             list_data.append([str(i[14]),int(0),lead_tooltip_two,int(i[7]),ga_tooltip_one])
-                    list_data = sorted(list_data, key=lambda x: datetime.strptime(x[0], '%Y-%m-%d'))                        
+                    list_data = sorted(list_data, key=lambda x: datetime.strptime(x[0], '%Y-%m-%d'))
+                    logging.info("...............................................................")                        
                 
             except Exception as e:
                 logging.info(str(e))
@@ -576,8 +578,8 @@ def view_reports(request):
                         else:
                             list_data.append([str(i[13]),int(i[6]),lead_tooltip_one,int(0),ga_tooltip_two])
                             list_data.append([str(i[14]),int(0),lead_tooltip_two,int(i[7]),ga_tooltip_one])
-                    list_data = sorted(list_data, key=lambda x: datetime.strptime(x[0], '%Y-%m-%d'))                       
-            
+                    list_data = sorted(list_data, key=lambda x: datetime.strptime(x[0], '%Y-%m-%d'))
+
             except Exception as e:
                 logging.info(str(e))
                 logging.info(str("Exception in Filter"))
@@ -629,7 +631,8 @@ def view_reports(request):
     else:
         to_date = str(to_date_range.year)+'-'+str(to_date_range.month)+'-'+str(to_date_range.day)
     
-    
+    from_date = '2014-02-01'
+    to_date   = '2014-02-04'   
     
     logging.info(from_date)
     #to_date = str(to_date_range.year)+'-'+str(to_date_range.month)+'-'+str(to_date_range.day)
@@ -673,39 +676,113 @@ def view_reports(request):
         'metrics':'ga:visits',
         'dimensions':'ga:pageTitle,ga:date',#'ga:pagePath',
         'alt':'json',
+        'max-results':'1000',
         }
                 
     encoded_data = urllib.urlencode(data)
     try :
         if datetime.now() < expire_in or datetime.now() > api_settings.updated:
-            api_response = urlfetch.fetch(url= 'https://www.googleapis.com/analytics/v3/data/ga?%s'%(encoded_data),
-            method=urlfetch.GET,
-            headers={'Content-Type': 'application/x-www-form-urlencoded','Authorization':'Bearer %s' % api_settings.access_token})
-
-            ga_result = json.loads(api_response.content)
-            lead_result = json.loads(result.content)
-            graph_data = zip([lead_result],[ga_result])
-            url_list = []
-            for j in ga_result['rows']:
-                url_list.append([j[0].encode('ascii','ignore'),j[1],j[2]])
+            
+#            api_response = urlfetch.fetch(url= 'https://www.googleapis.com/analytics/v3/data/ga?%s'%(encoded_data),
+#            method=urlfetch.GET,
+#            headers={'Content-Type': 'application/x-www-form-urlencoded','Authorization':'Bearer %s' % api_settings.access_token})
+#
+ #           ga_result = json.loads(api_response.content)
+ #           lead_result = json.loads(result.content)
+#            graph_data = zip([lead_result],[ga_result])
+            
+#            logging.info(ga_result['query'])
+#            logging.info(ga_result['totalResults'])
+#            url_list = []
+#            for j in ga_result['rows']:
+#                url_list.append([j[0].encode('ascii','ignore'),j[1],j[2]])
             #logging.info(url_list)    
+#            update_list = []
+#            for i in lead_result:
+#                update_dict = lead_parse_dict_creation(i)
+#                update_list.append(update_dict)
+            
+            lead_result = json.loads(result.content)
             update_list = []
+            
             for i in lead_result:
                 update_dict = lead_parse_dict_creation(i)
                 update_list.append(update_dict)
             
+                
+            from_index = 0
+            to_index   = 10001
+            step_index = 10000
+            url_list = []
+       
+            
+
+            
+            while from_index == 0 or from_index < to_index:
+                logging.info("------------------ GET STUFFF "+str(from_index)+" -> "+str(to_index)+"-------------------------------")
+                if(from_index == 0):
+                    logging.info("a")
+                    data = {
+                        'ids':'ga:'+str(api_settings.ga_profile_id),#67560806,77873725
+                        'start-date':from_date,#'2012-03-03',
+                        'end-date':to_date,#'2013-11-09',
+                        'metrics':'ga:visits',
+                        'dimensions':'ga:pageTitle,ga:date',#'ga:pagePath',
+                        'alt':'json',
+                        'max-results':str(step_index),
+                        }
+                else:
+                    logging.info("b")
+                    data = {
+                        'ids':'ga:'+str(api_settings.ga_profile_id),#67560806,77873725
+                        'start-date':from_date,#'2012-03-03',
+                        'end-date':to_date,#'2013-11-09',
+                        'metrics':'ga:visits',
+                        'dimensions':'ga:pageTitle,ga:date',#'ga:pagePath',
+                        'alt':'json',
+                        'start-index': from_index,
+                        'max-results':str(step_index),
+                    }
+                encoded_data = urllib.urlencode(data)
+                
+                api_response = urlfetch.fetch(url= 'https://www.googleapis.com/analytics/v3/data/ga?%s'%(encoded_data),
+                method=urlfetch.GET,
+                headers={'Content-Type': 'application/x-www-form-urlencoded','Authorization':'Bearer %s' % api_settings.access_token})
+    
+                ga_result = json.loads(api_response.content)
+          
+                graph_data = zip([lead_result],[ga_result])
+                
+                logging.info(ga_result['query'])
+                logging.info(ga_result['totalResults'])
+               
+                for j in ga_result['rows']:
+                    url_list.append([j[0].encode('ascii','ignore'),j[1],j[2]])
+                #logging.info(url_list)    
+               
+
+                
+                to_index = ga_result['totalResults']
+                from_index += step_index
+            
+            logging.info(".........................1..........................")   
             update_list = sorted(update_list, key=lambda l: l['page']) 
-                    
+            logging.info(".........................2..........................")         
             dict_list = []
             graph_result = []
             graph_result_new = [['Year', 'LeadEnhancer', 'GoogleAnalytics']]
             check_url = []
+            c1 = 0
             for update_item in update_list:
                 visitscore = ''
                 ga_visits = ''
                 report_details = []
+                c2 = 0
+                logging.info(".........................2.1."+str(c1)+" :"+str(c2)+".........................")   
                 for url_name in url_list:
-                    #logging.info(update_item['page'])
+                    #logging.info(update_item['page'] + " == "+ str(url_name[0]))
+                    
+                   # logging.info(".........................2.2. "+str(c1)+" :"+str(c2)+".........................")   
                     #if update_item['page'].startswith("Anwend"):
                     #    logging.info("gooooooooooooo")
                     #    logging.info(update_item['page'])
@@ -716,19 +793,24 @@ def view_reports(request):
                     #dec = update_item['page'].decode('ascii','ignore')
                     #eec = dec.encode('ascii','ignore')
                     if str(update_item['page'].encode('ascii','ignore')) == str(url_name[0]):
+                        #logging.info("check")
                         check_url.append(url_name[0])
-                        if url_name[0] == 'Download Form DE':
-                            logging.info('downnnnnnnnnnn')
+                       # if url_name[0] == 'Download Form DE':
+                       #     logging.info('downnnnnnnnnnn')
                         #logging.info(update_item['page'].encode('ascii','ignore'))    
                         #logging.info(update_item['page'])
                         #logging.info(url_name)
                         ga_visits = url_name[2]
                         ga_startdate = url_name[1]
                         report_details = parse_report_details(update_item)
-                       
+                    c2+=1     
+                    
+                c1+=1                  
                     
                 if report_details:
-                    
+                    logging.info(".........................2.3.........................")   
+                    logging.info(update_item)
+                    logging.info(report_details)
                 #    myjjdjd =[]
                 #    for g in ga_result['rows']:
                 #        #unicodedata.normalize('NFKD', g[0]).encode('ascii','ignore')
@@ -754,29 +836,75 @@ def view_reports(request):
                     #logging.info(report_details)
                     report_details.insert(7, ga_visits)
                     report_details.insert(14, ga_start_date)
+                    logging.info(report_details)
                     dict_list.append(report_details)
+            logging.info(".........................3..........................")   
             logging.info(set(check_url))            
             dict_list_1 = dict_list
             #logging.info(dict_list)
             list_data = []
+            aggregated_list_data = []
+            allready_aggregated  = []
             lead_count = int(0)
             ga_count = int(0)
             for i in dict_list_1:
+                #logging.info(i)
+                #logging.info(i[13]+" "+i[14])
                 lead_count = lead_count + int(i[6])
-                ga_count = ga_count + int(i[7])
+                ga_count   = ga_count   + int(i[7])
                 #logging.info('hrtrrrrr')
-                ga_tooltip_one = unicodedata.normalize('NFKD', i[0]).encode('ascii','ignore') +'--'+ str(i[7])
+                ga_tooltip_one   = unicodedata.normalize('NFKD', i[0]).encode('ascii','ignore') +'--'+ str(i[7])
                 lead_tooltip_one = unicodedata.normalize('NFKD', i[0]).encode('ascii','ignore') +'--'+ str(i[6])
-                ga_tooltip_two = unicodedata.normalize('NFKD', i[0]).encode('ascii','ignore') +'--'+ '0'
+                ga_tooltip_two   = unicodedata.normalize('NFKD', i[0]).encode('ascii','ignore') +'--'+ '0'
                 lead_tooltip_two = unicodedata.normalize('NFKD', i[0]).encode('ascii','ignore') +'--'+ '0'
                 if i[13] == i[14]:
-                    list_data.append([str(i[14]),int(i[6]),ga_tooltip_one,int(i[7]),lead_tooltip_one])
+                    list_data.append([str(i[14]),int(i[6]),ga_tooltip_one,int(i[7]),lead_tooltip_one,str(i[1])])
                 else:
-                    list_data.append([str(i[13]),int(i[6]),lead_tooltip_one,int(0),ga_tooltip_two])
-                    list_data.append([str(i[14]),int(0),lead_tooltip_two,int(i[7]),ga_tooltip_one])
-            list_data = sorted(list_data, key=lambda x: datetime.strptime(x[0], '%Y-%m-%d'))            
+                    list_data.append([str(i[13]),int(i[6]),lead_tooltip_one,int(0),ga_tooltip_two,str(i[1])])
+                    list_data.append([str(i[14]),int(0),lead_tooltip_two,int(i[7]),ga_tooltip_one,str(i[1])])
+            list_data = sorted(list_data, key=lambda x: datetime.strptime(x[0], '%Y-%m-%d'))    
+            logging.info("---------------------------------------------------------------")        
             #list_data.insert(0,['Year', 'LeadEnhancer', 'GoogleAnalytics'])
             #logging.info(list_data)
+            for i in list_data:
+                if i[4] not in allready_aggregated:
+                    allready_aggregated.append(i[4])
+                    tmp = i
+                    mycounter = 0
+                    for inner in list_data:
+                        if i[4] == inner[4]:
+                            mycounter = mycounter + 1
+                    #logging.info( mycounter)
+                    lead_count = lead_count + mycounter
+                    aggregated_list_data.append([i[0],mycounter,i[2],i[3],i[4],i[5]])
+                
+                    
+            
+            logging.info(days_between(from_date, to_date) )
+            if days_between(from_date, to_date) > 1:
+                logging.info("yyeeeeaaah")
+                allready_aggregated_by_date  = []
+                aggregated_list_data_by_date = []
+                for i in aggregated_list_data:
+                   # logging.info("-------------")
+                   # logging.info(i)  
+                    if i[0] not in allready_aggregated_by_date:
+                       # logging.info(i[0])    
+                        allready_aggregated_by_date.append(i[0])
+                        tmp = i
+                        mycounter = 0
+                        for inner in aggregated_list_data_by_date:
+                            if i[0] == inner[0]:
+                                mycounter = mycounter + inner[1]
+                        #logging.info( mycounter)
+                        lead_count = lead_count + mycounter
+                        aggregated_list_data_by_date.append([i[0],mycounter,i[2],i[3],i[4],i[5]])
+                #aggregated_list_data = aggregated_list_data_by_date
+                     
+            logging.info(from_date)               
+            logging.info(to_date)               
+        #    logging.info(aggregated_list_data)               
+
     except Exception as e:
         logging.info(str(e))
         ga_result = ''
@@ -784,6 +912,7 @@ def view_reports(request):
         graph_result = ''
         dict_list = ''
         graph_result_new = ''
+        aggregated_list_data = ''
         list_data = ''
         lead_count = ''
         ga_count = ''
@@ -806,13 +935,16 @@ def view_reports(request):
                                             'from_date':from_date,
                                             'to_date':to_date,
                                             'graph_result_new':graph_result_new,
-                                            'list_data':list_data,
+                                            'list_data':aggregated_list_data,
                                             'ga_count':ga_count,
                                             'lead_count':lead_count,
                                             'lead_api':lead_api,
                                             'image_url':image_url,
                                             'footer_content':footer_content,})
-    
+def days_between(d1, d2):
+    d1 = datetime.strptime(d1, "%Y-%m-%d")
+    d2 = datetime.strptime(d2, "%Y-%m-%d")
+    return abs((d2 - d1).days)    
     
 def customize_reports(request):
     user = request.user
@@ -945,6 +1077,7 @@ def lead_parse_dict_creation(i):
     '''
     Parse the lead list and update the dictionary.
     '''
+    
     update_dict = {}
     try:
         update_dict['visitscore'] = i['visitscore']
@@ -992,6 +1125,7 @@ def lead_parse_dict_creation(i):
         update_dict['url'] = j['url']
         update_dict['page'] = j['page']
         update_dict['startdate'] = j['start']
+        #logging.info(j['start']+" "+j['end'])
         return update_dict
 
 

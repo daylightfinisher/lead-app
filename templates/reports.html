@@ -47,6 +47,7 @@
       dataTable.addColumn({type: 'string', role: 'tooltip'});
       dataTable.addColumn('number', 'GoogleAnalytics');
       dataTable.addColumn({type: 'string', role: 'tooltip'})
+      dataTable.addColumn({type:'string', role: 'annotationText'});
       dataTable.addRows(
       {{list_data|safe}}
       );

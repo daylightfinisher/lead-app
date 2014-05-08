@@ -14,6 +14,8 @@ import urllib
 import urllib2
 import unicodedata
 
+from django.core.files import File
+
 from google.appengine.api import urlfetch
 from google.appengine.api import images
 from google.appengine.ext import db
@@ -26,6 +28,8 @@ from livesettings import config_value
 redirect_uri = settings.REDIRECT_URI
 client_id = settings.CLIENT_ID
 secret = settings.SECRET
+
+api_settings = 0
 
 @login_required(login_url='/login/')
 def home(request):
@@ -41,6 +45,7 @@ def home(request):
         pass
     user = request.user
     usr_obj = User.objects.get(username=user)
+    
     #initialize the info message
     info_msg = ''
     footer_content = config_value('leadappsettings','copy_rights')
@@ -49,6 +54,7 @@ def home(request):
     except:
         ga_api = None
         pass
+    
     try:
         lead_api = LeadApi_Settings.objects.get(user=request.user)
     except Exception as e:
@@ -238,15 +244,17 @@ def view_reports(request):
     '''
     Reports display the Google analytics and Lead Enhancer.
     '''
+    logging.info("------------------- view_reports -------------------------")
     footer_content = config_value('leadappsettings','copy_rights')
     user = request.user
     try:
+        global api_settings
         api_settings = Api_Settings.objects.get(user=user)
         lead_api_settings = LeadApi_Settings.objects.get(user=user)
     except:
+        logging.error("exception trying to set Api Settings")
         return HttpResponseRedirect('/')
-    
-    
+      
     try:
         lead_api = LeadApi_Settings.objects.get(user=user)
         get_blob_key = str(lead_api.icon_image).split('/')
@@ -257,7 +265,6 @@ def view_reports(request):
         pass
         
         
-    
     if api_settings.ga_profile_id == None or lead_api_settings.lead_token == None :
         return HttpResponseRedirect('/')
     
@@ -290,6 +297,7 @@ def view_reports(request):
 
     if request.method == "POST":
         if 'from_date' in request.POST:
+            logging.info("----------------- from_date  in request.POST ----------------------------");
             from_date = request.POST['from_date']
             to_date = request.POST['to_date']
             if from_date == '' and to_date == '':
@@ -330,15 +338,15 @@ def view_reports(request):
             if len(page_list) == 1:
                 page_list = page_title.split('http://')
             
-            generate_url = 'http://openapi.leadenhancer.com/v1/leadopenapi/visits?token=%s&fromdate=%s&todate=%s&limit=1000'% (lead_api_settings.lead_token,str(from_date),str(to_date))
+            #generate_url = 'http://openapi.leadenhancer.com/v1/leadopenapi/visits?token=%s&fromdate=%s&todate=%s&limit=1000'% (lead_api_settings.lead_token,str(from_date),str(to_date))
             
-            lead_data = {
-            'token':lead_api_settings.lead_token,#67560806,77873725
-            'fromdate':str(from_date),#'2012-03-03',
-            'todate':str(to_date),#'2013-11-09',
+            #lead_data = {
+            #'token':lead_api_settings.lead_token,#f,77873725
+            #'fromdate':str(from_date),#'2012-03-03',
+            #'todate':str(to_date),#'2013-11-09',
             #'countriesiso':'DE',
-            'limit':1000,
-            }
+            #'limit':1000,
+            #}
                 
             #lead_encoded_data = urllib.urlencode(lead_data)
             #lead_gen_result = urllib2.Request('http://openapi.leadenhancer.com/v1/leadopenapi/visits?%s'%(lead_encoded_data))
@@ -351,7 +359,7 @@ def view_reports(request):
             result = urlfetch.fetch(url)
             generate_lead_result = json.loads(result.content)
             
-            
+            ga_response = oauth2callback_using_refresh_token(request)
             #GA Report encoded data creation
             data = {
                 'ids':'ga:'+str(api_settings.ga_profile_id),#67560806,77873725
@@ -363,15 +371,18 @@ def view_reports(request):
                 
                 }
                         
-            encoded_data = urllib.urlencode(data)
+            #encoded_data = urllib.urlencode(data)
             
             try :
                 if datetime.now() :
-                    api_response = urlfetch.fetch(url= 'https://www.googleapis.com/analytics/v3/data/ga?%s'%(encoded_data),
-                    method=urlfetch.GET,
-                    headers={'Content-Type': 'application/x-www-form-urlencoded','Authorization':'Bearer %s' % api_settings.access_token})
+                    #api_response = urlfetch.fetch(url= 'https://www.googleapis.com/analytics/v3/data/ga?%s'%(encoded_data),
+                    #method=urlfetch.GET,
+                    #headers={'Content-Type': 'application/x-www-form-urlencoded','Authorization':'Bearer %s' % api_settings.access_token})
                     
-                    ga_result = json.loads(api_response.content)
+                    #ga_result = json.loads(api_response.content)
+                    ga_result = getGoogleAnalyticsData(data)
+                    logging.info("ga_result")
+                    logging.info(ga_result)
                     url_list = []
                     for j in ga_result['rows']:
                         url_list.append([j[0].encode('ascii','ignore'),j[1],j[2]])
@@ -379,10 +390,17 @@ def view_reports(request):
                     update_list = []
                     for i in generate_lead_result:
                         update_dict = lead_parse_dict_creation(i)
-                        update_list.append(update_dict)
+                        #update_list.append(update_dict)
+                        update_list.extend(update_dict)
                     
                     update_list = sorted(update_list, key=lambda l: l['page'])
                     
+                    
+                    #logging.info("url_list")
+                    #logging.info(url_list)
+                    
+                    #logging.info("update_list")
+                    #logging.info(update_list)
                     dict_list = []
                     graph_result = []
                     for updated_item in update_list:
@@ -391,19 +409,25 @@ def view_reports(request):
                         report_details = []
                         #URL List contains the lead enhancer result urls
                         for url_item in url_list:                     
-   			    #Check page title is url or page title
+   			                #Check page title is url or page title
                             if len(page_list) > 1:
+                                #logging.info("a")
                                 if updated_item['page'].encode('ascii','ignore') == url_item[0] and updated_item['url'] == page_title:
                                     ga_visits = url_item[2]
                                     ga_startdate = url_item[1]
                                     report_details = parse_report_details(updated_item)
                             
                             elif page_title and len(page_list) == 1:
+                                #logging.info("b")
+                                #logging.info(updated_item['page'].encode('ascii','ignore') +"=="+ url_item[0])
+                                #logging.info(updated_item['page'].encode('ascii','ignore') +"=="+ page_title)
                                 if updated_item['page'].encode('ascii','ignore') == url_item[0] and updated_item['page'].encode('ascii','ignore') == page_title:
+                                    logging.info("yes")
                                     ga_visits = url_item[2]
                                     ga_startdate = url_item[1]
                                     report_details = parse_report_details(updated_item)
                             else:
+                                #logging.info("c")
                                 if updated_item['page'].encode('ascii','ignore') == url_item[0]:
                                     ga_visits = url_item[2]
                                     ga_startdate = url_item[1]
@@ -428,6 +452,8 @@ def view_reports(request):
                     list_data = []
                     lead_count = int(0)
                     ga_count = int(0)
+                    logging.info("dict_list")
+                    logging.info(dict_list)
                     for i in dict_list:
                         logging.info(i)
                         lead_count = lead_count + int(i[6])
@@ -445,7 +471,8 @@ def view_reports(request):
                     logging.info("...............................................................")                        
                 
             except Exception as e:
-                logging.info(str(e))
+                logging.error("Excpetion ")
+                logging.error(str(e))
                 ga_result = ''
                 graph_data = ''
                 graph_result = ''
@@ -454,6 +481,10 @@ def view_reports(request):
                 lead_count = ''
                 ga_count = ''
                 pass
+            logging.info("|||||||||||||||render:||||||||||")
+            logging.info(from_date)
+            logging.info(to_date)
+            logging.info(list_data)
             return render(request, 'reports.html', {'ga_result':ga_result,
                                                     'graph_result':graph_result,
                                                     'dict_list':dict_list,
@@ -469,6 +500,7 @@ def view_reports(request):
                                                     'footer_content':footer_content,})
         
         elif 'filters' in request.POST:
+            logging.info("----------------- FILTEERS ----------------------------");
             #Get the session values and pass the data to template
             select_filter = 'Select'
             try:
@@ -508,12 +540,14 @@ def view_reports(request):
             encoded_data = urllib.urlencode(data)
             try :
                 if datetime.now() > api_settings.updated:
-                    api_response = urlfetch.fetch(url= 'https://www.googleapis.com/analytics/v3/data/ga?%s'%(encoded_data),
-                    method=urlfetch.GET,
-                    headers={'Content-Type': 'application/x-www-form-urlencoded','Authorization':'Bearer %s' % api_settings.access_token})
+                    #api_response = urlfetch.fetch(url= 'https://www.googleapis.com/analytics/v3/data/ga?%s'%(encoded_data),
+                    #method=urlfetch.GET,
+                    #headers={'Content-Type': 'application/x-www-form-urlencoded','Authorization':'Bearer %s' % api_settings.access_token})
         
-                    ga_result = json.loads(api_response.content)
-                    lead_result = json.loads(result.content)
+                    #ga_result = json.loads(api_response.content)
+                    #lead_result = json.loads(result.content)
+                    
+                    lead_result = getGoogleAnalyticsData(data)
                     
                     url_list = []
                     for j in ga_result['rows']:
@@ -531,7 +565,7 @@ def view_reports(request):
                         ga_visits = ''
                         report_details = []
                         for ga_url in url_list:                         
-   			    #Check page title is url or page title
+   			                #Check page title is url or page title
                             if len(page_list) > 1:
                                 if new_item['page'].encode('ascii','ignore') == ga_url[0] and new_item['url'] == page_title:
                                     ga_visits = ga_url[2]
@@ -631,20 +665,71 @@ def view_reports(request):
     else:
         to_date = str(to_date_range.year)+'-'+str(to_date_range.month)+'-'+str(to_date_range.day)
     
-    from_date = '2014-02-01'
-    to_date   = '2014-02-04'   
+    from_date = '2014-03-01'
+    to_date   = '2014-03-02'   
     
     logging.info(from_date)
-    #to_date = str(to_date_range.year)+'-'+str(to_date_range.month)+'-'+str(to_date_range.day)
-    url = 'http://openapi.leadenhancer.com/v1/leadopenapi/visits?token=%s&fromdate=%s&todate=%s&limit=2000'% (lead_api_settings.lead_token,from_date,to_date)
-    try:
+    logging.info("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+    from_date_array = from_date.split("-")
+    date_step = datetime(int(from_date_array[0]), int(from_date_array[1]), int(from_date_array[2]), 0, 0)
+    
+    
+    while days_between(date_step.strftime("%Y-%m-%d"), to_date) >= 1:
+        logging.info(date_step)
+        next_date_step = date_step + timedelta(days = 1)
+        
+        url = 'http://openapi.leadenhancer.com/v1/leadopenapi/visits?token=%s&fromdate=%s&todate=%s&limit=200000'% (lead_api_settings.lead_token,date_step.strftime("%Y-%m-%d"),next_date_step.strftime("%Y-%m-%d"))
         urlfetch.set_default_fetch_deadline(45)
         result = urlfetch.fetch(url)
+        try:
+            urlfetch.set_default_fetch_deadline(45)
+            result = urlfetch.fetch(url)
+            logging.info ("get url %s", url)
+            
+            
+            #handle1=open(os.path.join(settings.SITE_ROOT,'output.json'),'w+')
+            #handle1=open('E:/xampp/htdocs/lead-app/output.json','r')
+            #handle1.write("I AM NEW FILE")  
+            #handle1.close()
+            #f = open('E:/relatedpixels/github_repositories/lead-app/output.json', 'r+')
+            #var=f.read()
+            #logging.info(var) 
+            #write_file = open("/content.txt", "w")
+            #write_file.write(json.dumps(result))
+            with open("file2.json", "w") as out:
+                #out.write("sdefgfefewfwefwef")
+                myfile = File(f)
+                myfile.write('Hello World')
+                myfile.closed
+
+            f.closed
+
+       
+            #from django.core.files import File
+
+            # Create a Python file object using open() and the with statement
+            #with open('/tmp/hello.world', 'w') as f:
+            #    myfile = File(f)
+            #    myfile.write('Hello World')
+            #    myfile.closed
+            #f.closed
+            
+        except Exception as e:
+            logging.error(e)
+            logging.error(str(e))
+            message = 'API Connection Exceeds'
+        date_step = next_date_step
+    #to_date = str(to_date_range.year)+'-'+str(to_date_range.month)+'-'+str(to_date_range.day)
+   # url = 'http://openapi.leadenhancer.com/v1/leadopenapi/visits?token=%s&fromdate=%s&todate=%s&limit=200000'% (lead_api_settings.lead_token,from_date,to_date)
+   # try:
+   #     urlfetch.set_default_fetch_deadline(45)
+   #     result = urlfetch.fetch(url)
+   #     logging.info ("get url %s", url)
         
-    except Exception as e:
-        logging.info(str(e))
-        message = 'API Connection Exceeds'
-        return render(request, 'message.html', {'message':message})
+   # except Exception as e:
+   #     logging.info(str(e))
+   #     message = 'API Connection Exceeds'
+   #     return render(request, 'message.html', {'message':message})
     
     try:
         try:
@@ -688,7 +773,7 @@ def view_reports(request):
 #            headers={'Content-Type': 'application/x-www-form-urlencoded','Authorization':'Bearer %s' % api_settings.access_token})
 #
  #           ga_result = json.loads(api_response.content)
- #           lead_result = json.loads(result.content)
+            lead_result = json.loads(result.content)
 #            graph_data = zip([lead_result],[ga_result])
             
 #            logging.info(ga_result['query'])
@@ -707,16 +792,23 @@ def view_reports(request):
             
             for i in lead_result:
                 update_dict = lead_parse_dict_creation(i)
-                update_list.append(update_dict)
+                update_list.extend(update_dict)
             
+            date_dict = {}
+            for i in update_list:
+                mydate = i['startdate']
+                mydateshort = mydate[:10]
+                date_dict[mydateshort] = mydateshort
+            
+            #logging.info("DATES !!!!!!!!!!!!!!!!!!!!!")
+            #for i in date_dict:
+            #    logging.info(i)
                 
             from_index = 0
             to_index   = 10001
             step_index = 10000
             url_list = []
-       
-            
-
+            graph_data = 0
             
             while from_index == 0 or from_index < to_index:
                 logging.info("------------------ GET STUFFF "+str(from_index)+" -> "+str(to_index)+"-------------------------------")
@@ -743,25 +835,22 @@ def view_reports(request):
                         'start-index': from_index,
                         'max-results':str(step_index),
                     }
-                encoded_data = urllib.urlencode(data)
                 
-                api_response = urlfetch.fetch(url= 'https://www.googleapis.com/analytics/v3/data/ga?%s'%(encoded_data),
-                method=urlfetch.GET,
-                headers={'Content-Type': 'application/x-www-form-urlencoded','Authorization':'Bearer %s' % api_settings.access_token})
-    
-                ga_result = json.loads(api_response.content)
-          
-                graph_data = zip([lead_result],[ga_result])
+                ga_result = getGoogleAnalyticsData(data)
+               
+                if(graph_data  == 0):
+                    graph_data = zip([lead_result],[ga_result])
+                else:
+                    graph_data.append(zip([lead_result],[ga_result]))
                 
-                logging.info(ga_result['query'])
+                #logging.info(ga_result['query'])
+                logging.info(len(ga_result))
                 logging.info(ga_result['totalResults'])
                
                 for j in ga_result['rows']:
                     url_list.append([j[0].encode('ascii','ignore'),j[1],j[2]])
                 #logging.info(url_list)    
                
-
-                
                 to_index = ga_result['totalResults']
                 from_index += step_index
             
@@ -778,7 +867,9 @@ def view_reports(request):
                 ga_visits = ''
                 report_details = []
                 c2 = 0
-                logging.info(".........................2.1."+str(c1)+" :"+str(c2)+".........................")   
+                #logging.info(update_item['page'])
+                
+                #logging.info(".........................2.1."+str(c1)+" :"+str(c2)+".........................")   
                 for url_name in url_list:
                     #logging.info(update_item['page'] + " == "+ str(url_name[0]))
                     
@@ -794,23 +885,29 @@ def view_reports(request):
                     #eec = dec.encode('ascii','ignore')
                     if str(update_item['page'].encode('ascii','ignore')) == str(url_name[0]):
                         #logging.info("check")
-                        check_url.append(url_name[0])
-                       # if url_name[0] == 'Download Form DE':
-                       #     logging.info('downnnnnnnnnnn')
-                        #logging.info(update_item['page'].encode('ascii','ignore'))    
-                        #logging.info(update_item['page'])
-                        #logging.info(url_name)
-                        ga_visits = url_name[2]
-                        ga_startdate = url_name[1]
-                        report_details = parse_report_details(update_item)
+                        myLHStartDate = update_item['startdate']
+                        myLHStartDate = myLHStartDate[:10]
+                        myLHStartDate = myLHStartDate.replace("-","")
+                        #logging.info(myLHStartDate +" == "+ url_name[1] )
+                        if myLHStartDate == url_name[1]:
+                            #logging.info("oh yeah")
+                            check_url.append(url_name[0])
+                           # if url_name[0] == 'Download Form DE':
+                           #     logging.info('downnnnnnnnnnn')
+                            #logging.info(update_item['page'].encode('ascii','ignore'))    
+                            #logging.info(update_item['page'])
+                            #logging.info(url_name)
+                            ga_visits = url_name[2]
+                            ga_startdate = url_name[1]
+                            report_details = parse_report_details(update_item)
                     c2+=1     
                     
                 c1+=1                  
                     
                 if report_details:
-                    logging.info(".........................2.3.........................")   
-                    logging.info(update_item)
-                    logging.info(report_details)
+                    #logging.info(".........................2.3.........................")   
+                    #logging.info(update_item)
+                    #logging.info(report_details)
                 #    myjjdjd =[]
                 #    for g in ga_result['rows']:
                 #        #unicodedata.normalize('NFKD', g[0]).encode('ascii','ignore')
@@ -830,16 +927,16 @@ def view_reports(request):
                     #logging.info(ga_start_date)
                     graph_result.append([int(report_details[6]), int(ga_visits)])
                     #if ga_start_date == lead_startdate:
-                    graph_result_new.append([str(ga_start_date),int(report_details[6]), int(ga_visits)])
+                    graph_result_new.append([(ga_start_date).encode('utf-8'),int(report_details[6]), int(ga_visits)])
                     #logging.info(graph_result_new)
                     #Report display in template - google analytics visits in 7th position
                     #logging.info(report_details)
                     report_details.insert(7, ga_visits)
                     report_details.insert(14, ga_start_date)
-                    logging.info(report_details)
+                    #logging.info(report_details)
                     dict_list.append(report_details)
-            logging.info(".........................3..........................")   
-            logging.info(set(check_url))            
+            #logging.info(".........................3..........................")   
+            #logging.info(set(check_url))            
             dict_list_1 = dict_list
             #logging.info(dict_list)
             list_data = []
@@ -853,20 +950,21 @@ def view_reports(request):
                 lead_count = lead_count + int(i[6])
                 ga_count   = ga_count   + int(i[7])
                 #logging.info('hrtrrrrr')
-                ga_tooltip_one   = unicodedata.normalize('NFKD', i[0]).encode('ascii','ignore') +'--'+ str(i[7])
-                lead_tooltip_one = unicodedata.normalize('NFKD', i[0]).encode('ascii','ignore') +'--'+ str(i[6])
-                ga_tooltip_two   = unicodedata.normalize('NFKD', i[0]).encode('ascii','ignore') +'--'+ '0'
-                lead_tooltip_two = unicodedata.normalize('NFKD', i[0]).encode('ascii','ignore') +'--'+ '0'
+                ga_tooltip_one   = unicodedata.normalize('NFKD', i[0]).encode('utf-8','ignore') +'--'+ str(i[7])
+                lead_tooltip_one = unicodedata.normalize('NFKD', i[0]).encode('utf-8','ignore') +'--'+ str(i[6])
+                ga_tooltip_two   = unicodedata.normalize('NFKD', i[0]).encode('utf-8','ignore') +'--'+ '0'
+                lead_tooltip_two = unicodedata.normalize('NFKD', i[0]).encode('utf-8','ignore') +'--'+ '0'
                 if i[13] == i[14]:
-                    list_data.append([str(i[14]),int(i[6]),ga_tooltip_one,int(i[7]),lead_tooltip_one,str(i[1])])
+                    list_data.append([(i[14]).encode("utf-8"),int(i[6]),ga_tooltip_one,int(i[7]),lead_tooltip_one,(i[1]).encode("utf-8")])
                 else:
-                    list_data.append([str(i[13]),int(i[6]),lead_tooltip_one,int(0),ga_tooltip_two,str(i[1])])
-                    list_data.append([str(i[14]),int(0),lead_tooltip_two,int(i[7]),ga_tooltip_one,str(i[1])])
+                    list_data.append([(i[13]).encode("utf-8"),int(i[6]),lead_tooltip_one,int(0),ga_tooltip_two,(i[1]).encode("utf-8")])
+                    list_data.append([(i[14]).encode("utf-8"),int(0),lead_tooltip_two,int(i[7]),ga_tooltip_one,(i[1]).encode("utf-8")])
             list_data = sorted(list_data, key=lambda x: datetime.strptime(x[0], '%Y-%m-%d'))    
             logging.info("---------------------------------------------------------------")        
             #list_data.insert(0,['Year', 'LeadEnhancer', 'GoogleAnalytics'])
             #logging.info(list_data)
             for i in list_data:
+                #logging.info(i[0])
                 if i[4] not in allready_aggregated:
                     allready_aggregated.append(i[4])
                     tmp = i
@@ -881,32 +979,41 @@ def view_reports(request):
                     
             
             logging.info(days_between(from_date, to_date) )
-            if days_between(from_date, to_date) > 1:
-                logging.info("yyeeeeaaah")
-                allready_aggregated_by_date  = []
+            if days_between(from_date, to_date) >= 1:
+                #logging.info("yyeeeeaaah")
+                allready_aggregated_by_date  = {}
                 aggregated_list_data_by_date = []
                 for i in aggregated_list_data:
-                   # logging.info("-------------")
-                   # logging.info(i)  
+                    #logging.info("-------------")
+                    #logging.info(i)  
+                    #logging.info(i[0])
+                   
                     if i[0] not in allready_aggregated_by_date:
-                       # logging.info(i[0])    
-                        allready_aggregated_by_date.append(i[0])
-                        tmp = i
-                        mycounter = 0
-                        for inner in aggregated_list_data_by_date:
+                        #logging.info(i[0])    
+                        #logging.info("lululu")    
+                        allready_aggregated_by_date[i[0]] = "1"
+                        allready_aggregated.append(i[0])
+                #        allready_aggregated_by_date[i[0]] = "1"
+                        myLESum = 0
+                        myGASum = 0
+                        for inner in aggregated_list_data:
+                            #logging.info(inner[0])
                             if i[0] == inner[0]:
-                                mycounter = mycounter + inner[1]
-                        #logging.info( mycounter)
+                                myLESum = myLESum + inner[1]
+                                myGASum = myGASum + inner[3]
+                        #logging.info(myLESum)
                         lead_count = lead_count + mycounter
-                        aggregated_list_data_by_date.append([i[0],mycounter,i[2],i[3],i[4],i[5]])
-                #aggregated_list_data = aggregated_list_data_by_date
+                        aggregated_list_data_by_date.append([i[0],myLESum,i[2],myGASum,i[4],i[5]])
+                #    else:
+                #        logging.info(allready_aggregated_by_date[i[0]])
+                aggregated_list_data = aggregated_list_data_by_date
                      
             logging.info(from_date)               
             logging.info(to_date)               
-        #    logging.info(aggregated_list_data)               
+            logging.info(aggregated_list_data)               
 
     except Exception as e:
-        logging.info(str(e))
+        logging.error(str(e))
         ga_result = ''
         graph_data = ''
         graph_result = ''
@@ -925,7 +1032,7 @@ def view_reports(request):
         del(request.session['page_title'])
     except:
         pass
-    
+    logging.info("hhhhhhhhhhhhhhhhhh")
     return render(request, 'reports.html', {'response_details':json.loads(result.content),
                                             'ga_result':ga_result,
                                             'graph_data':graph_data,
@@ -945,6 +1052,17 @@ def days_between(d1, d2):
     d1 = datetime.strptime(d1, "%Y-%m-%d")
     d2 = datetime.strptime(d2, "%Y-%m-%d")
     return abs((d2 - d1).days)    
+
+def getGoogleAnalyticsData(data):
+    encoded_data = urllib.urlencode(data)
+                
+    api_response = urlfetch.fetch(url= 'https://www.googleapis.com/analytics/v3/data/ga?%s'%(encoded_data),
+    method=urlfetch.GET,
+    headers={'Content-Type': 'application/x-www-form-urlencoded','Authorization':'Bearer %s' % api_settings.access_token})
+    
+    ga_result = json.loads(api_response.content)
+    return ga_result
+
     
 def customize_reports(request):
     user = request.user
@@ -1119,14 +1237,16 @@ def lead_parse_dict_creation(i):
         update_dict['no_of_employees'] = i['organisation']['noofemployees']
     except:
         update_dict['no_of_employees'] = ''
-        
+  
+    dict = []
         
     for j in i['pageviews']:
         update_dict['url'] = j['url']
         update_dict['page'] = j['page']
         update_dict['startdate'] = j['start']
         #logging.info(j['start']+" "+j['end'])
-        return update_dict
+        dict.append(update_dict)
+    return dict
 
 
 def parse_report_details(updated_item):
